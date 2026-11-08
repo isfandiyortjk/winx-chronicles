@@ -6,135 +6,158 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Winx Magic">
-  <meta name="theme-color" content="#ff4081">
-  <title>Winx: Хроники Алфеи и Сила Любви ✨</title>
+  <meta name="theme-color" content="#d81b60">
+  <title>Winx Club: Магия Алфеи ✨</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700&family=Marck+Script&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700&family=Marck+Script&family=Cinzel:wght@700&display=swap" rel="stylesheet">
 </head>
 <body>
   <div id="app-container">
-    <!-- Фоновые частицы магии -->
+    <!-- Фоновые панорамы локаций (Алфея, Лаборатория, Озеро, Бал) -->
+    <div id="dynamic-bg" class="dynamic-bg"></div>
+
+    <!-- Вращающийся магический круг превращения Winx -->
+    <div class="magic-circle-seal"></div>
+
+    <!-- Фоновые парящие частицы магии -->
     <canvas id="bg-canvas"></canvas>
 
-    <!-- ВЕРХНИЙ ХЕДЕР С ВАЛЮТОЙ И НАСТРОЙКАМИ -->
+    <!-- ВЕРХНИЙ ХЕДЕР С ЗОЛОТОЙ ОТДЕЛКОЙ И ВАЛЮТОЙ -->
     <header class="top-nav">
-      <button id="nav-hub-btn" class="nav-back-btn hidden">🏰 Алфея</button>
+      <button id="nav-hub-btn" class="crystal-btn nav-back-btn hidden">
+        <span class="btn-gem">🏰</span>
+        <span class="btn-txt">Алфея</span>
+      </button>
       <div class="user-stats">
-        <span class="stat-pill star-pill">🌟 <b id="ui-stars">0</b></span>
-        <span class="stat-pill heart-pill">💖 <b id="ui-hearts">0</b></span>
+        <div class="crystal-pill star-pill">
+          <span class="pill-gem">🌟</span>
+          <b id="ui-stars">0</b>
+        </div>
+        <div class="crystal-pill heart-pill">
+          <span class="pill-gem">💖</span>
+          <b id="ui-hearts">0</b>
+        </div>
       </div>
       <div class="header-buttons">
-        <button id="sound-btn" class="icon-btn" aria-label="Звук">🔊</button>
-        <button id="music-btn" class="icon-btn" aria-label="Музыка">🎵</button>
+        <button id="sound-btn" class="jewel-round-btn" aria-label="Звук">🔊</button>
+        <button id="music-btn" class="jewel-round-btn" aria-label="Музыка">🎵</button>
       </div>
     </header>
 
-    <!-- СЕКЦИЯ 1: СТАРТ / ВВОД ИМЕНИ -->
+    <!-- СЕКЦИЯ 1: СТАРТ / ВВОД ИМЕНИ ФЕИ -->
     <section id="screen-welcome" class="screen active">
-      <div class="welcome-box">
-        <div class="title-badge">Школа волшебниц Алфея</div>
-        <h1 class="glow-title">Winx Club:<br><span>Сила Любви</span></h1>
-        <p class="subtitle">Магическая история для самой прекрасной феи 💖</p>
+      <div class="welcome-box ornate-card">
+        <div class="title-crown-badge">👑 Школа волшебниц Алфея 👑</div>
+        <h1 class="winx-logo-title">Winx Club<br><span>Сила Любви</span></h1>
+        <p class="subtitle">Интерактивная история для самой прекрасной феи 💖</p>
         
-        <div class="fairy-hero-preview">
-          <canvas id="welcome-canvas" width="220" height="260"></canvas>
+        <div class="fairy-hero-portrait" id="welcome-portrait-container">
+          <!-- Рендерится из WINX_ASSETS -->
         </div>
 
-        <div class="name-input-box">
-          <label for="player-name-input">Как зовут нашу прекрасную фею?</label>
-          <input type="text" id="player-name-input" placeholder="Твоё имя или ласковое прозвище..." maxlength="16">
+        <div class="name-input-box crystal-frame">
+          <label for="player-name-input">Имя прекрасной феи:</label>
+          <input type="text" id="player-name-input" placeholder="Например: Любимая, Соня, Аня..." maxlength="16">
         </div>
 
-        <button id="start-adventure-btn" class="sparkle-btn main-btn">
-          <span>Войти в школу Алфея ✨</span>
+        <button id="start-adventure-btn" class="crystal-btn main-gold-btn">
+          <span class="btn-gem">✨</span>
+          <span class="btn-txt">Войти в школу Алфея</span>
+          <span class="btn-wing-glow"></span>
         </button>
       </div>
     </section>
 
     <!-- СЕКЦИЯ 2: ГЛАВНЫЙ ХАБ / ЗАЛ АЛФЕИ -->
     <section id="screen-hub" class="screen">
-      <div class="hub-header">
+      <div class="hub-header ornate-badge">
         <h2 id="hub-greeting">Здравствуй, Фея!</h2>
         <p class="hub-sub">Выбери, куда отправиться сегодня:</p>
       </div>
 
       <div class="hub-avatar-center">
-        <canvas id="hub-fairy-canvas" width="220" height="280"></canvas>
-        <div id="hub-pet-tag" class="pet-badge hidden">🐰 Кико рядом с тобой</div>
+        <div class="fairy-stage-glow"></div>
+        <div class="hub-portrait-container" id="hub-portrait-container">
+          <!-- Рендер феи в полный рост -->
+        </div>
+        <div id="hub-pet-tag" class="crystal-pet-badge hidden">🐰 Кико рядом с тобой</div>
       </div>
 
-      <!-- Кнопки выбора локаций / режимов -->
+      <!-- Кнопки выбора локаций / режимов (Кристальные магические плитки) -->
       <div class="hub-menu-grid">
-        <button class="hub-tile story-tile" id="hub-to-story">
-          <span class="tile-icon">📖</span>
+        <button class="hub-tile story-tile crystal-tile" id="hub-to-story">
+          <div class="tile-gem-icon">📖</div>
           <div class="tile-info">
             <b>Сюжетные Главы</b>
             <small id="hub-chapter-status">Глава 1: Первое утро</small>
           </div>
+          <span class="tile-arrow">▶</span>
         </button>
 
-        <button class="hub-tile salon-tile" id="hub-to-wardrobe">
-          <span class="tile-icon">👗</span>
+        <button class="hub-tile salon-tile crystal-tile" id="hub-to-wardrobe">
+          <div class="tile-gem-icon">👗</div>
           <div class="tile-info">
-            <b>Гардероб и Салон</b>
+            <b>Салон & Гардероб</b>
             <small>Крылья, наряды, питомцы</small>
           </div>
         </button>
 
-        <button class="hub-tile potion-tile" id="hub-to-potion">
-          <span class="tile-icon">🧪</span>
+        <button class="hub-tile potion-tile crystal-tile" id="hub-to-potion">
+          <div class="tile-gem-icon">🧪</div>
           <div class="tile-info">
             <b>Урок Зельеварения</b>
-            <small>Мини-игра Палладиума</small>
+            <small>Котёл Палладиума</small>
           </div>
         </button>
 
-        <button class="hub-tile battle-tile" id="hub-to-battle">
-          <span class="tile-icon">⚔️</span>
+        <button class="hub-tile battle-tile crystal-tile" id="hub-to-battle">
+          <div class="tile-gem-icon">⚔️</div>
           <div class="tile-info">
             <b>Битва с Ведьмами</b>
-            <small>Защити озеро Роккалуче</small>
+            <small>Озеро Роккалуче</small>
           </div>
         </button>
 
-        <button class="hub-tile post-tile" id="hub-to-room">
-          <span class="tile-icon">💌</span>
+        <button class="hub-tile post-tile crystal-tile" id="hub-to-room">
+          <div class="tile-gem-icon">💌</div>
           <div class="tile-info">
             <b>Комната и Почта</b>
             <small id="hub-mail-alert">Письма от Него</small>
           </div>
         </button>
 
-        <button class="hub-tile flight-tile" id="hub-to-flight">
-          <span class="tile-icon">🪽</span>
+        <button class="hub-tile flight-tile crystal-tile" id="hub-to-flight">
+          <div class="tile-gem-icon">🪽</div>
           <div class="tile-info">
             <b>Магический Полёт</b>
-            <small>Сбор звёзд и тренировка</small>
+            <small>Тренировка и звёзды</small>
           </div>
         </button>
       </div>
     </section>
 
-    <!-- СЕКЦИЯ 3: СЮЖЕТНЫЙ ДИАЛОГ (VISUAL NOVEL) -->
+    <!-- СЕКЦИЯ 3: СЮЖЕТНЫЙ ДИАЛОГ (VISUAL NOVEL В СТИЛЕ WINX) -->
     <section id="screen-dialog" class="screen">
       <div class="vn-scene-container">
-        <div class="vn-chapter-banner">
+        <div class="vn-chapter-banner ornate-badge">
           <span id="vn-chap-title">Глава 1: Первое утро</span>
         </div>
 
         <div class="vn-stage">
           <div class="vn-speaker-portrait" id="vn-speaker-avatar">
-            <canvas id="vn-char-canvas" width="160" height="200"></canvas>
+            <!-- Аутентичный портрет из WINX_ASSETS -->
           </div>
         </div>
 
-        <div class="vn-dialogue-box">
+        <div class="vn-dialogue-box royal-parchment-frame">
           <div class="vn-speaker-name" id="vn-speaker-name">Блум</div>
           <p class="vn-text" id="vn-speech-text">Добро пожаловать в Алфею!</p>
           <div class="vn-actions">
-            <button id="vn-next-btn" class="sparkle-btn vn-btn">Далее ✨</button>
+            <button id="vn-next-btn" class="crystal-btn main-gold-btn vn-btn">
+              <span class="btn-txt">Далее ✨</span>
+            </button>
           </div>
         </div>
       </div>
@@ -142,73 +165,72 @@
 
     <!-- СЕКЦИЯ 4: УРОК ЗЕЛЬЕВАРЕНИЯ (КАБИНЕТ ПАЛЛАДИУМА) -->
     <section id="screen-potion" class="screen">
-      <div class="potion-arena">
+      <div class="potion-arena ornate-card">
         <div class="potion-header">
           <h3>Котёл Профессора Палладиума 🧪</h3>
           <p id="potion-recipe-title">Рецепт: Эликсир Храбрости</p>
         </div>
 
-        <!-- Котёл с анимированным варевом -->
+        <!-- Анимированный алхимический котел с подсветкой -->
         <div class="cauldron-wrapper">
-          <div class="cauldron-smoke"></div>
+          <div class="cauldron-smoke-fx"></div>
           <div class="cauldron-pot" id="cauldron-pot">
-            <div class="cauldron-liquid" id="cauldron-liquid"></div>
+            <div class="cauldron-liquid" id="cauldron-liquid">
+              <div class="bubble b1"></div>
+              <div class="bubble b2"></div>
+              <div class="bubble b3"></div>
+            </div>
           </div>
-          <div class="recipe-target-list" id="recipe-needed-list">
-            <!-- Требуемые ингредиенты -->
-          </div>
+          <div class="recipe-target-list" id="recipe-needed-list"></div>
         </div>
 
-        <div class="potion-status-bar">
-          <span>Сварено зелий: <b id="potion-score">0 / 3</b></span>
+        <div class="potion-status-bar crystal-pill">
+          <span>Сварено эликсиров: <b id="potion-score">0 / 3</b></span>
         </div>
 
-        <!-- Ингредиенты на полочке -->
-        <div class="ingredients-shelf" id="ingredients-shelf">
-          <!-- Генерируются в JS -->
-        </div>
+        <!-- Ингредиенты в виде хрустальных флаконов -->
+        <div class="ingredients-shelf" id="ingredients-shelf"></div>
       </div>
     </section>
 
     <!-- СЕКЦИЯ 5: МАГИЧЕСКАЯ ДУЭЛЬ (БИТВА С АЙСИ) -->
     <section id="screen-battle" class="screen">
-      <div class="battle-arena">
+      <div class="battle-arena ornate-card">
         <div class="battle-hud">
           <div class="hp-box player-hp">
             <span class="hp-name" id="battle-player-name">Фея</span>
             <div class="hp-bar-bg"><div id="player-hp-bar" class="hp-fill player-fill" style="width: 100%;"></div></div>
           </div>
-          <div class="vs-tag">VS</div>
+          <div class="vs-crystal-tag">⚡ VS ⚡</div>
           <div class="hp-box boss-hp">
             <span class="hp-name">Айси (Трикс)</span>
             <div class="hp-bar-bg"><div id="boss-hp-bar" class="hp-fill boss-fill" style="width: 100%;"></div></div>
           </div>
         </div>
 
-        <!-- Боевая сцена -->
+        <!-- Боевая сцена с мультяшными моделями -->
         <div class="battle-field" id="battle-field">
-          <div class="fighter-hero">
-            <canvas id="battle-hero-canvas" width="140" height="180"></canvas>
-            <div id="player-shield-fx" class="shield-fx hidden"></div>
-          </div>
-          <div class="fighter-boss">
-            <canvas id="battle-boss-canvas" width="140" height="180"></canvas>
-          </div>
-          <div id="battle-fx-layer"></div>
+          <div class="fighter-hero" id="battle-hero-portrait"></div>
+          <div id="player-shield-fx" class="shield-fx hidden"></div>
+          <div class="fighter-boss" id="battle-boss-portrait"></div>
+          <div id="spell-blast-fx" class="spell-blast-fx hidden"></div>
         </div>
 
-        <div class="battle-log" id="battle-log">Айси готовит ледяную метель! Защищайся!</div>
+        <div class="battle-log crystal-frame" id="battle-log">Айси готовит ледяную метель! Защищайся!</div>
 
-        <!-- Кнопки заклинаний -->
+        <!-- Кристальные кнопки боевых заклинаний -->
         <div class="battle-spells">
-          <button id="spell-attack-btn" class="spell-btn attack">
-            <span>⚡ Магический Луч</span>
+          <button id="spell-attack-btn" class="crystal-spell-btn attack-btn">
+            <span class="spell-icon">⚡</span>
+            <span>Луч Света</span>
           </button>
-          <button id="spell-shield-btn" class="spell-btn shield">
-            <span>🛡️ Щит Света</span>
+          <button id="spell-shield-btn" class="crystal-spell-btn shield-btn">
+            <span class="spell-icon">🛡️</span>
+            <span>Щит Алфеи</span>
           </button>
-          <button id="spell-heal-btn" class="spell-btn heal">
-            <span>💖 Сила Любви</span>
+          <button id="spell-heal-btn" class="crystal-spell-btn heal-btn">
+            <span class="spell-icon">💖</span>
+            <span>Сила Любви</span>
           </button>
         </div>
       </div>
@@ -217,15 +239,15 @@
     <!-- СЕКЦИЯ 6: ТАНЕЦ НА БАЛУ (РИТМ-ИГРА) -->
     <section id="screen-dance" class="screen">
       <div class="dance-arena">
-        <div class="dance-hud">
+        <div class="dance-hud crystal-pill">
           <span>Счёт танца: <b id="dance-score">0 / 15</b></span>
-          <span class="dance-hint">Лови звёзды и ноты!</span>
+          <span class="dance-hint">Лови звёзды и ноты! 💖</span>
         </div>
         <div class="dance-stage" id="dance-stage">
           <canvas id="dance-canvas"></canvas>
-          <div class="dance-couple">
-            <div class="dancing-fairy">🧚‍♀️</div>
-            <div class="dancing-specialist">🤴</div>
+          <div class="dance-couple-art">
+            <div class="dance-duo-avatar" id="dance-hero-avatar"></div>
+            <div class="dance-specialist-avatar" id="dance-specialist-avatar"></div>
           </div>
         </div>
       </div>
@@ -234,42 +256,39 @@
     <!-- СЕКЦИЯ 7: ПОЛЁТ НАД АЛФЕЕЙ -->
     <section id="screen-flight" class="screen">
       <div class="flight-hud">
-        <div class="mana-container">
+        <div class="mana-container crystal-pill">
           <span class="mana-label">Энергия:</span>
           <div class="mana-bar-bg"><div id="mana-fill" class="mana-bar-fill" style="width: 0%;"></div></div>
           <span id="mana-percent">0%</span>
         </div>
-        <div class="score-box">✨ <span id="flight-stars-collected">0</span></div>
+        <div class="score-box crystal-pill">✨ <span id="flight-stars-collected">0</span></div>
       </div>
       <div class="flight-canvas-wrapper">
         <canvas id="flight-canvas"></canvas>
-        <div id="flight-tutorial" class="flight-tutorial">
+        <div id="flight-tutorial" class="flight-tutorial ornate-card">
           <div class="finger-icon">👆</div>
           <p>Нажимай на экран, чтобы взлетать!<br>Собирай звёзды и сердца 💖</p>
         </div>
       </div>
     </section>
 
-    <!-- СЕКЦИЯ 8: КОМНАТА И ПОЧТОВЫЙ ЯЩИК ОТ НЕГО -->
+    <!-- СЕКЦИЯ 8: КОМНАТА И ПОЧТОВЫЙ ЯЩИК -->
     <section id="screen-room" class="screen">
-      <div class="room-container">
+      <div class="room-container ornate-card">
         <div class="room-header">
           <h3>Твоя Уютная Комната в Алфее 🌸</h3>
           <p>Почтовый ящик с письмами от твоего Специалиста</p>
         </div>
 
         <div class="room-tabs">
-          <button class="room-tab-btn active" data-rtab="letters">💌 Письма от Него</button>
-          <button class="room-tab-btn" data-rtab="scrapbook">🏆 Альбом и Медали</button>
+          <button class="crystal-btn room-tab-btn active" data-rtab="letters">💌 Письма от Него</button>
         </div>
 
-        <div class="room-content" id="room-tab-content">
-          <!-- Заполняется в JS -->
-        </div>
+        <div class="room-content" id="room-tab-content"></div>
 
-        <!-- Модалка просмотра письма -->
+        <!-- Модалка просмотра любовного письма на пергаменте -->
         <div id="letter-modal" class="letter-modal hidden">
-          <div class="letter-modal-paper">
+          <div class="letter-modal-paper royal-parchment-frame">
             <button id="close-letter-btn" class="close-modal-btn">✖</button>
             <div class="modal-letter-title" id="m-letter-title">Заголовок</div>
             <div class="modal-letter-date" id="m-letter-date">Дата</div>
@@ -282,16 +301,17 @@
 
     <!-- СЕКЦИЯ 9: ГАРДЕРОБ И САЛОН МАГИИ -->
     <section id="screen-wardrobe" class="screen">
-      <div class="wardrobe-header">
+      <div class="wardrobe-header ornate-badge">
         <h3>Салон Красоты и Гардероб 👗</h3>
         <p>Выбирай крылья, наряды и бери с собой питомцев</p>
       </div>
 
       <div class="wardrobe-stage">
-        <canvas id="wardrobe-fairy-canvas" width="220" height="280"></canvas>
+        <div class="fairy-stage-glow"></div>
+        <div id="wardrobe-portrait-container" class="wardrobe-portrait-box"></div>
       </div>
 
-      <div class="wardrobe-panel">
+      <div class="wardrobe-panel ornate-card">
         <div class="category-tabs">
           <button class="wtab-btn active" data-wcat="wings">Крылья</button>
           <button class="wtab-btn" data-wcat="outfits">Наряды</button>
@@ -299,24 +319,20 @@
           <button class="wtab-btn" data-wcat="pets">Питомцы</button>
         </div>
 
-        <div class="wardrobe-grid" id="wardrobe-items-grid">
-          <!-- Заполняется в JS -->
-        </div>
+        <div class="wardrobe-grid" id="wardrobe-items-grid"></div>
       </div>
     </section>
 
     <!-- СЕКЦИЯ 10: ФИНАЛЬНЫЙ ДИПЛОМ И ЭНЧАНТИКС -->
     <section id="screen-final" class="screen">
-      <div class="final-container">
+      <div class="final-container ornate-card">
         <div class="celebration-burst">🌟 💖 ✨ 👑 ✨ 💖 🌟</div>
-        <h2 class="letter-title">Великая Сила Любви!</h2>
-        <div class="certificate-badge">Официальный Золотой Диплом Алфеи</div>
+        <h2 class="winx-logo-title">Великая Сила Любви!</h2>
+        <div class="title-crown-badge">Официальный Золотой Диплом Алфеи</div>
 
-        <div class="fairy-final-portrait">
-          <canvas id="final-fairy-canvas" width="180" height="220"></canvas>
-        </div>
+        <div class="fairy-final-portrait" id="final-portrait-container"></div>
 
-        <div class="scroll-letter">
+        <div class="scroll-letter royal-parchment-frame">
           <div class="letter-header">Дорогая <span id="final-fairy-name">Любимая Фея</span>!</div>
           <div class="letter-body" id="final-letter-content" contenteditable="true">
             Ты прошла все испытания школы Алфея, растопила ледяные чары добротой и покорила сердце своего Специалиста!
@@ -328,14 +344,16 @@
           <div class="letter-sign">С бесконечной любовью твой Специалист 💖</div>
         </div>
 
-        <button id="final-to-hub-btn" class="sparkle-btn main-btn">
-          <span>Продолжить приключения в Алфее 🏰</span>
+        <button id="final-to-hub-btn" class="crystal-btn main-gold-btn">
+          <span class="btn-gem">🏰</span>
+          <span class="btn-txt">Продолжить приключения в Алфее</span>
         </button>
       </div>
     </section>
   </div>
 
   <script src="audio.js"></script>
+  <script src="assets.js"></script>
   <script src="story.js"></script>
   <script src="game.js"></script>
 </body>

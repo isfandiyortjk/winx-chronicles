@@ -1,12 +1,11 @@
-// Winx: Хроники Алфеи и Сила Любви — Полный игровой движок
+// Winx: Хроники Алфеи и Сила Любви — Полный игровой движок с аутентичной мультяшной графикой
 
-// 1. СИСТЕМА СОХРАНЕНИЯ (LOCALSTORAGE)
-const SAVE_KEY = 'winx_chronicles_save_v1';
+const SAVE_KEY = 'winx_chronicles_save_v2';
 
 let saveData = {
   name: 'Любимая Фея',
   stars: 50,
-  hearts: 20,
+  hearts: 25,
   currentChapter: 1,
   completedChapters: [],
   equipped: {
@@ -40,7 +39,6 @@ function saveGame() {
   }
 }
 
-// 2. ОБНОВЛЕНИЕ ВЕРХНЕЙ ПАНЕЛИ
 function updateHUD() {
   const starsEl = document.getElementById('ui-stars');
   const heartsEl = document.getElementById('ui-hearts');
@@ -65,6 +63,22 @@ function updateHUD() {
   }
 }
 
+// 2. ДИНАМИЧЕСКАЯ СМЕНА МУЛЬТЯШНЫХ ФОНОВ
+function updateLocationBackground(screenId) {
+  const bg = document.getElementById('dynamic-bg');
+  if (!bg || !window.WINX_ASSETS) return;
+
+  if (screenId === 'screen-potion') {
+    bg.innerHTML = WINX_ASSETS.backgrounds.palladiumLab;
+  } else if (screenId === 'screen-battle') {
+    bg.innerHTML = WINX_ASSETS.backgrounds.lakeRoccaluce;
+  } else if (screenId === 'screen-dance') {
+    bg.innerHTML = WINX_ASSETS.backgrounds.ballroomRedFountain;
+  } else {
+    bg.innerHTML = WINX_ASSETS.backgrounds.alfeaSunset;
+  }
+}
+
 // 3. ПЕРЕКЛЮЧЕНИЕ ЭКРАНОВ
 let currentScreenId = 'screen-welcome';
 
@@ -76,6 +90,8 @@ function showScreen(screenId) {
     currentScreenId = screenId;
   }
 
+  updateLocationBackground(screenId);
+
   const backBtn = document.getElementById('nav-hub-btn');
   if (screenId === 'screen-welcome' || screenId === 'screen-hub') {
     backBtn.classList.add('hidden');
@@ -83,405 +99,39 @@ function showScreen(screenId) {
     backBtn.classList.remove('hidden');
   }
 
+  renderScreenPortraits(screenId);
   saveGame();
 }
 
-// 4. ПРОЦЕДУРНЫЙ РЕНДЕР ПЕРСОНАЖЕЙ (CANVAS)
-function drawCharacter(ctx, x, y, scale = 1, charType = 'player', wingAngle = 0) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(scale, scale);
-
-  if (charType === 'player') {
-    drawPlayerFairy(ctx, wingAngle);
-  } else if (charType === 'bloom') {
-    drawPresetFairy(ctx, '#ff5722', '#00b0ff', '#ff69b4', 'bloom', wingAngle);
-  } else if (charType === 'stella') {
-    drawPresetFairy(ctx, '#ffca28', '#ff9800', '#ffd700', 'stella', wingAngle);
-  } else if (charType === 'flora') {
-    drawPresetFairy(ctx, '#6d4c41', '#e91e63', '#69f0ae', 'flora', wingAngle);
-  } else if (charType === 'palladium') {
-    drawProfessorPalladium(ctx);
-  } else if (charType === 'icy') {
-    drawWitchIcy(ctx);
-  } else if (charType === 'specialist') {
-    drawSpecialist(ctx);
-  } else if (charType === 'faragonda') {
-    drawFaragonda(ctx);
-  }
-
-  ctx.restore();
-}
-
-function drawPlayerFairy(ctx, wingAngle) {
+// 4. РЕНДЕР АУТЕНТИЧНЫХ МУЛЬТЯШНЫХ ПОРТРЕТОВ WINX
+function getPlayerSvg() {
   const wingDef = GAME_STORY.wardrobeShop.wings.find(w => w.id === saveData.equipped.wings) || GAME_STORY.wardrobeShop.wings[0];
   const outfitDef = GAME_STORY.wardrobeShop.outfits.find(o => o.id === saveData.equipped.outfit) || GAME_STORY.wardrobeShop.outfits[0];
   const hairDef = GAME_STORY.wardrobeShop.hair.find(h => h.id === saveData.equipped.hair) || GAME_STORY.wardrobeShop.hair[0];
 
-  drawWingsGeneric(ctx, wingDef.color, wingAngle);
-  drawBodyGeneric(ctx, outfitDef.color);
-  drawFaceGeneric(ctx);
-  drawHairGeneric(ctx, hairDef.style, hairDef.color);
-  drawCrownGeneric(ctx, '#ffd700');
+  return WINX_ASSETS.renderPlayerFairySvg({
+    wingColor: wingDef.color,
+    outfitColor: outfitDef.color,
+    hairColor: hairDef.color
+  });
 }
 
-function drawPresetFairy(ctx, hairColor, outfitColor, wingColor, hairStyle, wingAngle) {
-  drawWingsGeneric(ctx, wingColor, wingAngle);
-  drawBodyGeneric(ctx, outfitColor);
-  drawFaceGeneric(ctx);
-  drawHairGeneric(ctx, hairStyle, hairColor);
-  drawCrownGeneric(ctx, wingColor);
-}
+function renderScreenPortraits(screenId) {
+  if (!window.WINX_ASSETS) return;
 
-function drawWingsGeneric(ctx, color, wingFlapAngle) {
-  ctx.save();
-  const flap = Math.sin(wingFlapAngle);
-  const scaleX = 0.75 + flap * 0.25;
-
-  ctx.save();
-  ctx.translate(-8, -15);
-  ctx.scale(-scaleX, 1);
-  renderWingPath(ctx, color);
-  ctx.restore();
-
-  ctx.save();
-  ctx.translate(8, -15);
-  ctx.scale(scaleX, 1);
-  renderWingPath(ctx, color);
-  ctx.restore();
-
-  ctx.restore();
-}
-
-function renderWingPath(ctx, color) {
-  ctx.shadowBlur = 18;
-  ctx.shadowColor = color;
-
-  const grad = ctx.createLinearGradient(0, 0, 70, -60);
-  grad.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-  grad.addColorStop(0.4, color);
-  grad.addColorStop(1, 'rgba(255, 255, 255, 0.2)');
-
-  ctx.fillStyle = grad;
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 1.8;
-
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.bezierCurveTo(20, -50, 70, -75, 80, -40);
-  ctx.bezierCurveTo(85, -15, 55, 10, 0, 0);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(0, 5);
-  ctx.bezierCurveTo(25, 15, 50, 35, 45, 55);
-  ctx.bezierCurveTo(35, 65, 10, 35, 0, 5);
-  ctx.fill();
-  ctx.stroke();
-}
-
-function drawBodyGeneric(ctx, dressColor) {
-  ctx.fillStyle = '#ffdfcf';
-  ctx.fillRect(-5, 0, 10, 15);
-
-  ctx.fillStyle = dressColor;
-  ctx.shadowBlur = 6;
-  ctx.shadowColor = dressColor;
-  ctx.beginPath();
-  ctx.moveTo(-14, 12);
-  ctx.lineTo(14, 12);
-  ctx.lineTo(18, 38);
-  ctx.lineTo(-18, 38);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(-18, 38);
-  ctx.quadraticCurveTo(-26, 65, -20, 75);
-  ctx.quadraticCurveTo(0, 85, 20, 75);
-  ctx.quadraticCurveTo(26, 65, 18, 38);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = '#ffd700';
-  ctx.shadowBlur = 0;
-  ctx.fillRect(-17, 36, 34, 4);
-
-  ctx.fillStyle = '#ffdfcf';
-  ctx.beginPath();
-  ctx.arc(-14, 16, 4, 0, Math.PI * 2);
-  ctx.arc(14, 16, 4, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-function drawFaceGeneric(ctx) {
-  ctx.fillStyle = '#ffdfcf';
-  ctx.shadowBlur = 0;
-  ctx.beginPath();
-  ctx.arc(0, -14, 22, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = 'rgba(255, 99, 132, 0.45)';
-  ctx.beginPath();
-  ctx.arc(-11, -8, 5, 0, Math.PI * 2);
-  ctx.arc(11, -8, 5, 0, Math.PI * 2);
-  ctx.fill();
-
-  drawAnimeEye(ctx, -8, -14);
-  drawAnimeEye(ctx, 8, -14);
-
-  ctx.strokeStyle = '#c2185b';
-  ctx.lineWidth = 1.6;
-  ctx.beginPath();
-  ctx.arc(0, -5, 6, 0.2, Math.PI - 0.2);
-  ctx.stroke();
-}
-
-function drawAnimeEye(ctx, x, y) {
-  ctx.save();
-  ctx.translate(x, y);
-
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.ellipse(0, 0, 5, 7, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#00bcd4';
-  ctx.beginPath();
-  ctx.ellipse(0, 0.5, 3.8, 5.5, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#004d40';
-  ctx.beginPath();
-  ctx.arc(0, 1, 2.5, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.arc(-1.2, -1.8, 1.8, 0, Math.PI * 2);
-  ctx.arc(1.5, 2, 1, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.strokeStyle = '#3e2723';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.arc(0, -3.5, 5.5, Math.PI * 1.1, Math.PI * 1.9);
-  ctx.stroke();
-
-  ctx.restore();
-}
-
-function drawHairGeneric(ctx, style, color) {
-  ctx.fillStyle = color;
-  ctx.shadowBlur = 4;
-  ctx.shadowColor = color;
-
-  if (style === 'bloom') {
-    ctx.beginPath();
-    ctx.arc(0, -18, 24, Math.PI * 0.8, Math.PI * 2.2);
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.moveTo(-20, -12);
-    ctx.quadraticCurveTo(-34, 15, -24, 75);
-    ctx.quadraticCurveTo(-15, 45, -15, 5);
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.moveTo(20, -12);
-    ctx.quadraticCurveTo(34, 15, 24, 75);
-    ctx.quadraticCurveTo(15, 45, 15, 5);
-    ctx.fill();
-  } else if (style === 'stella') {
-    ctx.beginPath();
-    ctx.arc(0, -18, 23, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.moveTo(-18, -25);
-    ctx.quadraticCurveTo(-45, -10, -38, 70);
-    ctx.quadraticCurveTo(-25, 40, -18, -15);
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.moveTo(18, -25);
-    ctx.quadraticCurveTo(45, -10, 38, 70);
-    ctx.quadraticCurveTo(25, 40, 18, -15);
-    ctx.fill();
-  } else {
-    ctx.beginPath();
-    ctx.arc(0, -18, 24, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.moveTo(-22, -10);
-    ctx.bezierCurveTo(-40, 15, -28, 50, -35, 80);
-    ctx.bezierCurveTo(-20, 65, -15, 30, -15, 5);
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.moveTo(22, -10);
-    ctx.bezierCurveTo(40, 15, 28, 50, 35, 80);
-    ctx.bezierCurveTo(20, 65, 15, 30, 15, 5);
-    ctx.fill();
+  if (screenId === 'screen-welcome') {
+    const box = document.getElementById('welcome-portrait-container');
+    if (box) box.innerHTML = WINX_ASSETS.characters.bloom;
+  } else if (screenId === 'screen-hub') {
+    const box = document.getElementById('hub-portrait-container');
+    if (box) box.innerHTML = getPlayerSvg();
+  } else if (screenId === 'screen-wardrobe') {
+    const box = document.getElementById('wardrobe-portrait-container');
+    if (box) box.innerHTML = getPlayerSvg();
+  } else if (screenId === 'screen-final') {
+    const box = document.getElementById('final-portrait-container');
+    if (box) box.innerHTML = getPlayerSvg();
   }
-}
-
-function drawCrownGeneric(ctx, glowColor) {
-  ctx.fillStyle = '#ffd700';
-  ctx.shadowBlur = 8;
-  ctx.shadowColor = glowColor;
-
-  ctx.beginPath();
-  ctx.moveTo(-10, -34);
-  ctx.lineTo(-6, -42);
-  ctx.lineTo(0, -36);
-  ctx.lineTo(6, -42);
-  ctx.lineTo(10, -34);
-  ctx.closePath();
-  ctx.fill();
-}
-
-// Рендер Специалиста
-function drawSpecialist(ctx) {
-  // Доспехи
-  ctx.fillStyle = '#1e88e5';
-  ctx.beginPath();
-  ctx.moveTo(-18, 10);
-  ctx.lineTo(18, 10);
-  ctx.lineTo(14, 55);
-  ctx.lineTo(-14, 55);
-  ctx.closePath();
-  ctx.fill();
-
-  // Наплечники и плащ
-  ctx.fillStyle = '#0d47a1';
-  ctx.fillRect(-22, 10, 8, 15);
-  ctx.fillRect(14, 10, 8, 15);
-
-  // Голова
-  ctx.fillStyle = '#ffdfcf';
-  ctx.beginPath();
-  ctx.arc(0, -14, 20, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Волосы (русые / золотистые)
-  ctx.fillStyle = '#d4a373';
-  ctx.beginPath();
-  ctx.arc(0, -18, 22, Math.PI * 0.9, Math.PI * 2.1);
-  ctx.fill();
-  ctx.fillRect(-18, -25, 36, 12);
-
-  // Глаза
-  drawAnimeEye(ctx, -7, -13);
-  drawAnimeEye(ctx, 7, -13);
-
-  // Улыбка
-  ctx.strokeStyle = '#5d4037';
-  ctx.lineWidth = 1.6;
-  ctx.beginPath();
-  ctx.arc(0, -4, 5, 0.2, Math.PI - 0.2);
-  ctx.stroke();
-}
-
-// Рендер ведьмы Айси
-function drawWitchIcy(ctx) {
-  // Ледяное тёмное платье
-  ctx.fillStyle = '#1a237e';
-  ctx.shadowBlur = 12;
-  ctx.shadowColor = '#00e5ff';
-  ctx.beginPath();
-  ctx.moveTo(-16, 12);
-  ctx.lineTo(16, 12);
-  ctx.lineTo(20, 65);
-  ctx.lineTo(-20, 65);
-  ctx.closePath();
-  ctx.fill();
-
-  // Лицо
-  ctx.fillStyle = '#f0f4c3';
-  ctx.beginPath();
-  ctx.arc(0, -14, 20, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Ледяные белые волосы (высокий хвост)
-  ctx.fillStyle = '#e0f7fa';
-  ctx.beginPath();
-  ctx.arc(0, -18, 22, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(0, -35);
-  ctx.lineTo(25, -70);
-  ctx.lineTo(35, -50);
-  ctx.closePath();
-  ctx.fill();
-
-  // Ледяная диадема
-  ctx.fillStyle = '#00e5ff';
-  ctx.fillRect(-10, -32, 20, 5);
-
-  // Глаза (холодные фиолетовые)
-  drawAnimeEye(ctx, -7, -13);
-  drawAnimeEye(ctx, 7, -13);
-}
-
-function drawProfessorPalladium(ctx) {
-  // Мантия
-  ctx.fillStyle = '#2e7d32';
-  ctx.fillRect(-16, 12, 32, 55);
-
-  // Лицо эльфа
-  ctx.fillStyle = '#ffdfcf';
-  ctx.beginPath();
-  ctx.arc(0, -14, 20, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Длинные эльфийские уши
-  ctx.beginPath();
-  ctx.moveTo(-18, -14);
-  ctx.lineTo(-32, -24);
-  ctx.lineTo(-18, -8);
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(18, -14);
-  ctx.lineTo(32, -24);
-  ctx.lineTo(18, -8);
-  ctx.fill();
-
-  // Волосы
-  ctx.fillStyle = '#b0bec5';
-  ctx.beginPath();
-  ctx.arc(0, -18, 22, 0, Math.PI * 2);
-  ctx.fill();
-
-  drawAnimeEye(ctx, -7, -13);
-  drawAnimeEye(ctx, 7, -13);
-}
-
-function drawFaragonda(ctx) {
-  ctx.fillStyle = '#4a148c';
-  ctx.fillRect(-18, 12, 36, 55);
-
-  ctx.fillStyle = '#ffdfcf';
-  ctx.beginPath();
-  ctx.arc(0, -14, 21, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#cfd8dc';
-  ctx.beginPath();
-  ctx.arc(0, -20, 24, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Очки
-  ctx.strokeStyle = '#ffd700';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(-12, -18, 9, 8);
-  ctx.strokeRect(3, -18, 9, 8);
-
-  drawAnimeEye(ctx, -7, -14);
-  drawAnimeEye(ctx, 7, -14);
 }
 
 // 5. ДВИЖОК СЮЖЕТНЫХ ДИАЛОГОВ (VISUAL NOVEL)
@@ -499,7 +149,6 @@ function startChapter(chapterId) {
 
 function showCurrentDialogue() {
   if (!activeChapter || currentDialogIndex >= activeChapter.dialogues.length) {
-    // Диалоги закончились — запускаем геймплей главы!
     launchChapterGameplay();
     return;
   }
@@ -511,13 +160,13 @@ function showCurrentDialogue() {
   document.getElementById('vn-speaker-name').textContent = speakerName;
   document.getElementById('vn-speech-text').textContent = text;
 
-  // Отрисовка говорящего
-  const canvas = document.getElementById('vn-char-canvas');
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const charType = d.avatar === 'player' ? 'player' : d.avatar;
-  drawCharacter(ctx, canvas.width / 2, canvas.height / 2 + 10, 1.3, charType, 0);
+  // Отрисовка аутентичного мультяшного портрета
+  const portraitBox = document.getElementById('vn-speaker-avatar');
+  if (d.avatar === 'player') {
+    portraitBox.innerHTML = getPlayerSvg();
+  } else if (WINX_ASSETS.characters[d.avatar]) {
+    portraitBox.innerHTML = WINX_ASSETS.characters[d.avatar];
+  }
 
   window.magicAudio.playSparkle();
 }
@@ -564,7 +213,7 @@ function completeChapter(chapter) {
   window.magicAudio.playEnchantixFanfare();
 }
 
-// 6. МИНИ-ИГРА: УРОК ЗЕЛЬЕВАРЕНИЯ (POTION)
+// 6. УРОК ЗЕЛЬЕВАРЕНИЯ (POTION)
 let potionState = {
   score: 0,
   targetScore: 3,
@@ -638,12 +287,10 @@ function handleAddIngredient(ing) {
     potionState.addedIngredients.push(ing);
     renderRecipeTargetPills();
 
-    // Меняем цвет жижи в котле
     const liquid = document.getElementById('cauldron-liquid');
     liquid.style.background = potionState.currentRecipe.color;
 
     if (potionState.addedIngredients.length === potionState.currentRecipe.ingredients.length) {
-      // Зелье сварено успешно!
       potionState.score++;
       window.magicAudio.playSparkle();
 
@@ -657,13 +304,12 @@ function handleAddIngredient(ing) {
       }
     }
   } else {
-    // Ошибка
     const liquid = document.getElementById('cauldron-liquid');
     liquid.style.background = '#212121';
   }
 }
 
-// 7. МИНИ-ИГРА: МАГИЧЕСКАЯ ДУЭЛЬ (BATTLE С АЙСИ)
+// 7. МАГИЧЕСКАЯ ДУЭЛЬ С АЙСИ (BATTLE)
 let battleState = {
   playerHp: 100,
   bossHp: 100,
@@ -682,16 +328,9 @@ function startBattleGame(chapter) {
   document.getElementById('battle-player-name').textContent = saveData.name;
   document.getElementById('battle-log').textContent = 'Айси готовит ледяной шторм! Используй щит и заклинания!';
 
-  // Рендер участников
-  const heroCanvas = document.getElementById('battle-hero-canvas');
-  const heroCtx = heroCanvas.getContext('2d');
-  heroCtx.clearRect(0, 0, heroCanvas.width, heroCanvas.height);
-  drawCharacter(heroCtx, heroCanvas.width / 2, heroCanvas.height / 2 + 10, 1.2, 'player', 0);
-
-  const bossCanvas = document.getElementById('battle-boss-canvas');
-  const bossCtx = bossCanvas.getContext('2d');
-  bossCtx.clearRect(0, 0, bossCanvas.width, bossCanvas.height);
-  drawCharacter(bossCtx, bossCanvas.width / 2, bossCanvas.height / 2 + 10, 1.2, 'icy', 0);
+  // Мультяшные аватары бойцов
+  document.getElementById('battle-hero-portrait').innerHTML = getPlayerSvg();
+  document.getElementById('battle-boss-portrait').innerHTML = WINX_ASSETS.characters.icy;
 
   if (battleState.bossInterval) clearInterval(battleState.bossInterval);
   battleState.bossInterval = setInterval(bossAttackStep, 2600);
@@ -706,7 +345,7 @@ function bossAttackStep() {
   if (!battleState.active) return;
 
   if (battleState.isShieldActive) {
-    document.getElementById('battle-log').textContent = '🛡️ Твой Щит Света полностью отразил ледяную стрелу Айси!';
+    document.getElementById('battle-log').textContent = '🛡️ Щит Света Алфеи полностью отразил ледяную атаку Айси!';
     window.magicAudio.playMagicShield();
   } else {
     battleState.playerHp = Math.max(0, battleState.playerHp - 22);
@@ -723,7 +362,6 @@ function bossAttackStep() {
   }
 }
 
-// Кнопки заклинаний
 document.getElementById('spell-attack-btn').onclick = () => {
   if (!battleState.active) return;
   window.magicAudio.playMagicSpell();
@@ -745,7 +383,7 @@ document.getElementById('spell-shield-btn').onclick = () => {
   window.magicAudio.playMagicShield();
   battleState.isShieldActive = true;
   document.getElementById('player-shield-fx').classList.remove('hidden');
-  document.getElementById('battle-log').textContent = '🛡️ Щит Света активирован на 2.5 секунды!';
+  document.getElementById('battle-log').textContent = '🛡️ Щит Алфеи защищает тебя от атак!';
 
   setTimeout(() => {
     battleState.isShieldActive = false;
@@ -762,7 +400,7 @@ document.getElementById('spell-heal-btn').onclick = () => {
   updateBattleHud();
 };
 
-// 8. МИНИ-ИГРА: ТАНЕЦ НА БАЛУ (DANCE RHYTHM)
+// 8. БАЛЬНЫЙ ТАНЕЦ (DANCE RHYTHM)
 let danceState = {
   score: 0,
   targetScore: 15,
@@ -777,6 +415,8 @@ function startDanceGame(chapter) {
   danceState.items = [];
 
   document.getElementById('dance-score').textContent = `0 / ${danceState.targetScore}`;
+  document.getElementById('dance-hero-avatar').innerHTML = getPlayerSvg();
+  document.getElementById('dance-specialist-avatar').innerHTML = WINX_ASSETS.characters.specialist;
 
   const canvas = document.getElementById('dance-canvas');
   canvas.width = canvas.clientWidth || window.innerWidth;
@@ -790,9 +430,9 @@ function startDanceGame(chapter) {
       y: -20,
       speed: Math.random() * 2 + 2.5,
       type: Math.random() > 0.4 ? '💖' : '⭐',
-      size: 32
+      size: 34
     });
-    setTimeout(spawnItem, 700);
+    setTimeout(spawnItem, 650);
   }
   spawnItem();
 
@@ -803,7 +443,7 @@ function startDanceGame(chapter) {
 
     danceState.items.forEach((item, idx) => {
       const dist = Math.hypot(item.x - tapX, item.y - tapY);
-      if (dist < 45) {
+      if (dist < 50) {
         danceState.score++;
         window.magicAudio.playCollect(item.type === '💖');
         danceState.items.splice(idx, 1);
@@ -838,7 +478,7 @@ function startDanceGame(chapter) {
   updateDance();
 }
 
-// 9. МИНИ-ИГРА: ПОЛЁТ (FLIGHT 2.0)
+// 9. МАГИЧЕСКИЙ ПОЛЁТ (FLIGHT 2.0)
 let flightAnimId = null;
 
 function startFlightGame(chapter) {
@@ -851,7 +491,7 @@ function startFlightGame(chapter) {
   canvas.width = canvas.clientWidth || window.innerWidth;
   canvas.height = canvas.clientHeight || window.innerHeight;
 
-  let player = { x: 60, y: canvas.height / 2, velocityY: 0, gravity: 0.28, jump: -6.0, mana: 0, stars: 0, wingAngle: 0 };
+  let player = { x: 70, y: canvas.height / 2, velocityY: 0, gravity: 0.28, jump: -6.0, mana: 0, stars: 0, wingAngle: 0 };
   let items = [];
   let running = true;
 
@@ -874,12 +514,12 @@ function startFlightGame(chapter) {
     if (player.y < 25) { player.y = 25; player.velocityY = 0; }
     if (player.y > canvas.height - 45) { player.y = canvas.height - 45; player.velocityY = 0; }
 
-    if (frame % 55 === 0) {
+    if (frame % 50 === 0) {
       items.push({
         x: canvas.width + 30,
         y: Math.random() * (canvas.height - 120) + 50,
         type: Math.random() > 0.4 ? 'heart' : 'star',
-        speed: 3
+        speed: 3.2
       });
     }
 
@@ -910,10 +550,17 @@ function startFlightGame(chapter) {
       }
     });
 
-    // Рисуем фею игрока
+    // Рисуем светящуюся фею в полете
     ctx.save();
     ctx.translate(player.x, player.y);
-    drawCharacter(ctx, 0, 0, 0.9, 'player', player.wingAngle);
+    const tilt = Math.max(-0.4, Math.min(0.4, player.velocityY * 0.05));
+    ctx.rotate(tilt);
+    ctx.font = '40px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#ffd700';
+    ctx.fillText('🧚‍♀️', 0, 0);
     ctx.restore();
 
     flightAnimId = requestAnimationFrame(loop);
@@ -1002,8 +649,8 @@ function renderWardrobeGrid() {
         window.magicAudio.playSparkle();
         saveGame();
         renderWardrobeGrid();
+        renderScreenPortraits(currentScreenId);
       } else {
-        // Покупка
         if (saveData.stars >= item.costStars && saveData.hearts >= item.costHearts) {
           saveData.stars -= item.costStars;
           saveData.hearts -= item.costHearts;
@@ -1012,6 +659,7 @@ function renderWardrobeGrid() {
           window.magicAudio.playCollect(true);
           saveGame();
           renderWardrobeGrid();
+          renderScreenPortraits(currentScreenId);
         } else {
           alert(`Не хватает звёзд или сердец! Проходи сюжетные задания и мини-игры ✨`);
         }
@@ -1022,12 +670,14 @@ function renderWardrobeGrid() {
   });
 }
 
-// 12. ИНИЦИАЛИЗАЦИЯ И ОБРАБОТЧИКИ
+// 12. ИНИЦИАЛИЗАЦИЯ И СЛУШАТЕЛИ
 window.addEventListener('DOMContentLoaded', () => {
   loadGame();
   updateHUD();
+  updateLocationBackground('screen-welcome');
+  renderScreenPortraits('screen-welcome');
 
-  // Фоновый блеск
+  // Фоновые частицы
   const bgCanvas = document.getElementById('bg-canvas');
   new BackgroundSparkles(bgCanvas);
 
@@ -1052,7 +702,7 @@ window.addEventListener('DOMContentLoaded', () => {
     showScreen('screen-hub');
   };
 
-  // Старт игры (Приветствие)
+  // Старт
   const nameInput = document.getElementById('player-name-input');
   if (saveData.name && saveData.name !== 'Любимая Фея') {
     nameInput.value = saveData.name;
@@ -1069,7 +719,7 @@ window.addEventListener('DOMContentLoaded', () => {
     showScreen('screen-hub');
   };
 
-  // Навигация Хаба
+  // Меню Хаба
   document.getElementById('hub-to-story').onclick = () => {
     window.magicAudio.playSparkle();
     startChapter(saveData.currentChapter);
@@ -1111,16 +761,7 @@ window.addEventListener('DOMContentLoaded', () => {
     showCurrentDialogue();
   };
 
-  // Вкладки комнаты
-  document.querySelectorAll('.room-tab-btn').forEach(btn => {
-    btn.onclick = () => {
-      document.querySelectorAll('.room-tab-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      renderRoomLetters();
-    };
-  });
-
-  // Вкладки гардероба
+  // Гардероб табы
   document.querySelectorAll('.wtab-btn').forEach(btn => {
     btn.onclick = () => {
       document.querySelectorAll('.wtab-btn').forEach(b => b.classList.remove('active'));
@@ -1130,41 +771,10 @@ window.addEventListener('DOMContentLoaded', () => {
     };
   });
 
-  // Кнопка финала
+  // Финал
   document.getElementById('final-to-hub-btn').onclick = () => {
     showScreen('screen-hub');
   };
-
-  // Анимация феи в Хабе и Гардеробе
-  const hubCanvas = document.getElementById('hub-fairy-canvas');
-  const hubCtx = hubCanvas.getContext('2d');
-  const wardCanvas = document.getElementById('wardrobe-fairy-canvas');
-  const wardCtx = wardCanvas.getContext('2d');
-  const welcomeCanvas = document.getElementById('welcome-canvas');
-  const welcomeCtx = welcomeCanvas.getContext('2d');
-  const finalCanvas = document.getElementById('final-fairy-canvas');
-  const finalCtx = finalCanvas.getContext('2d');
-
-  function renderHubCycle() {
-    const flap = Date.now() * 0.007;
-
-    if (currentScreenId === 'screen-hub') {
-      hubCtx.clearRect(0, 0, hubCanvas.width, hubCanvas.height);
-      drawCharacter(hubCtx, hubCanvas.width / 2, hubCanvas.height / 2 + 10, 1.45, 'player', flap);
-    } else if (currentScreenId === 'screen-wardrobe') {
-      wardCtx.clearRect(0, 0, wardCanvas.width, wardCanvas.height);
-      drawCharacter(wardCtx, wardCanvas.width / 2, wardCanvas.height / 2 + 10, 1.45, 'player', flap);
-    } else if (currentScreenId === 'screen-welcome') {
-      welcomeCtx.clearRect(0, 0, welcomeCanvas.width, welcomeCanvas.height);
-      drawCharacter(welcomeCtx, welcomeCanvas.width / 2, welcomeCanvas.height / 2 + 10, 1.3, 'player', flap);
-    } else if (currentScreenId === 'screen-final') {
-      finalCtx.clearRect(0, 0, finalCanvas.width, finalCanvas.height);
-      drawCharacter(finalCtx, finalCanvas.width / 2, finalCanvas.height / 2 + 10, 1.25, 'player', flap);
-    }
-
-    requestAnimationFrame(renderHubCycle);
-  }
-  renderHubCycle();
 });
 
 // Фоновые блестки
@@ -1186,14 +796,14 @@ class BackgroundSparkles {
 
   createParticles() {
     this.particles = [];
-    const count = Math.floor(window.innerWidth / 16);
+    const count = Math.floor(window.innerWidth / 18);
     for (let i = 0; i < count; i++) {
       this.particles.push({
         x: Math.random() * this.canvas.width,
         y: Math.random() * this.canvas.height,
         size: Math.random() * 3 + 1,
-        speedY: -(Math.random() * 0.8 + 0.2),
-        speedX: (Math.random() - 0.5) * 0.5,
+        speedY: -(Math.random() * 0.7 + 0.2),
+        speedX: (Math.random() - 0.5) * 0.4,
         opacity: Math.random() * 0.8 + 0.2,
         isHeart: Math.random() > 0.75
       });
