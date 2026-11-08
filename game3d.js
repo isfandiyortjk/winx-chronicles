@@ -1,16 +1,18 @@
-// Winx Club 3D: Алфея и Сила Любви — Трёхмерный движок на Three.js (WebGL)
-// Воссоздаёт аутентичный геймплей культовых игр Winx:
-// 1. 3D бег от третьего лица по коридору замка Алфея с красным ковром (скриншот 2)
-// 2. Сбор 3D розовых кристаллов и цветок жизни (скриншоты 3 и 4)
-// 3. Открывание волшебных 3D сундуков с искрами (скриншот 4)
-// 4. Сферический розовый щит с нотами (скриншот 1)
-// 5. Модный салон с круглыми кнопками категорий (скриншот 5)
+// Winx Club 3D: Хроники Алфеи — Трёхмерное прохождение с уровнями и сюжетными миссиями
+// Воссоздаёт настоящее прохождение культовой игры Winx Club 2006:
+// - Уровень 1: Сад Алфеи с дорожкой, фонарями, коваными воротами и сундуком (скриншоты 3 и 4)
+// - Уровень 2: Зал замка с красным ковром, колоннами и золотыми рыцарями (скриншот 2)
+// - Уровень 3: Битва со сферическим розовым щитом и стрельбой магией (скриншот 1)
+// - Уровень 4: Модный салон с выбором сумочек и обуви (скриншот 5)
+// - Уровень 5: Финал с Золотым Ларцом и письмом Любви
 
-// Состояние сохранения
-const SAVE_3D_KEY = 'winx_3d_save_v1';
-let game3dState = {
-  diamonds: 14,
-  stars: 110,
+const CAMPAIGN_SAVE_KEY = 'winx_campaign_progress_v2';
+
+let campaignData = {
+  unlockedLevel: 1,
+  currentLevel: 1,
+  levelStars: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+  diamondsTotal: 14,
   equipped: {
     hair: 'bloom_red',
     wings: 'enchantix_wings',
@@ -21,184 +23,164 @@ let game3dState = {
   }
 };
 
-// Загрузка сохранения
+// Загрузка прогресса
 try {
-  const raw = localStorage.getItem(SAVE_3D_KEY);
-  if (raw) Object.assign(game3dState, JSON.parse(raw));
+  const raw = localStorage.getItem(CAMPAIGN_SAVE_KEY);
+  if (raw) Object.assign(campaignData, JSON.parse(raw));
 } catch (e) {}
 
-function save3d() {
+function saveCampaign() {
   try {
-    localStorage.setItem(SAVE_3D_KEY, JSON.stringify(game3dState));
+    localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(campaignData));
   } catch (e) {}
-  updateHudValues();
-}
-
-function updateHudValues() {
-  const dEl = document.getElementById('hud-diamonds-text');
-  if (dEl) dEl.innerHTML = `<b>${game3dState.diamonds}</b> / 60`;
-  const sEl = document.getElementById('hud-stars');
-  if (sEl) sEl.textContent = game3dState.stars;
-  const sVal = document.getElementById('salon-diamonds-val');
-  if (sVal) sVal.textContent = game3dState.diamonds;
+  updateMapNodes();
 }
 
 // -------------------------------------------------------------
-// ИНИЦИАЛИЗАЦИЯ THREE.JS 3D СЦЕНЫ
+// 3D ДВИЖОК THREE.JS
 // -------------------------------------------------------------
 let scene, camera, renderer;
 let playerGroup, fairyWingsLeft, fairyWingsRight;
-let shieldMesh, shieldNotes = [];
-let corridorSegments = [];
-let gems3D = [];
-let chest3D = null;
-let chestLid = null;
-let isChestOpen = false;
+let magicShieldMesh, shieldNotes = [];
+let activeProjectiles = [];
+let levelObjects = []; // Кристаллы, сундуки, ворота текущего уровня
+let bossMonster = null;
+let bossHp = 100;
+let levelGemsCollected = 0;
+let targetGemsCount = 10;
+let hasGardenKey = false;
+let activeInteractAction = null;
 
-// Позиция игрока и физика
-const LANES = [-2.4, 0, 2.4];
-let currentLane = 1; // 0: левый, 1: центр, 2: правый
-let targetX = 0;
-let playerSpeedZ = 16.0; // скорость бега вперед
+// Ввод управления (D-Pad и кнопки)
+const inputState = {
+  up: false,
+  down: false,
+  left: false,
+  right: false
+};
+
+let playerVelocity = new THREE.Vector3();
 let playerVelocityY = 0;
-let playerY = 0;
 let isJumping = false;
 let isShieldActive = false;
-let isGameRunning = true;
+let isPlaying3D = false;
 
-function init3D() {
+function initThreeEngine() {
   const container = document.getElementById('viewport-3d');
   const width = container.clientWidth || window.innerWidth;
   const height = container.clientHeight || window.innerHeight;
 
-  // 1. Сцена и туман
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x2a0845);
-  scene.fog = new THREE.FogExp2(0x2a0845, 0.018);
+  scene.fog = new THREE.FogExp2(0x2a0845, 0.015);
 
-  // 2. Камера (вид сзади от третьего лица)
-  camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 200);
-  camera.position.set(0, 4.2, 7.5);
+  camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 250);
+  camera.position.set(0, 4, 7);
 
-  // 3. Рендерер
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(width, height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   container.appendChild(renderer.domElement);
 
-  // 4. Освещение
-  const ambientLight = new THREE.AmbientLight(0xffebee, 0.75);
-  scene.add(ambientLight);
+  // Освещение
+  const ambient = new THREE.AmbientLight(0xffebee, 0.85);
+  scene.add(ambient);
 
-  const sunLight = new THREE.DirectionalLight(0xfff8e1, 1.2);
-  sunLight.position.set(10, 25, 10);
-  sunLight.castShadow = true;
-  sunLight.shadow.mapSize.width = 1024;
-  sunLight.shadow.mapSize.height = 1024;
-  scene.add(sunLight);
+  const sun = new THREE.DirectionalLight(0xfff8e1, 1.2);
+  sun.position.set(15, 30, 20);
+  scene.add(sun);
 
-  // Золотые точечные светильники вдоль зала
-  const warmLight = new THREE.PointLight(0xffd700, 1.5, 30);
-  warmLight.position.set(0, 6, -10);
-  scene.add(warmLight);
+  // Создаем фею игрока
+  buildPlayerFairy();
 
-  // 5. Создание игрока-феи
-  createFairyCharacter();
+  // Создаем магический сферический щит (скриншот 1)
+  buildMagicShield();
 
-  // 6. Создание магического сферического щита (скриншот 1)
-  createMagicShield();
+  // Слушатели сенсорного управления
+  setupControls();
 
-  // 7. Построение сегментов коридора Алфеи
-  for (let i = 0; i < 5; i++) {
-    createCorridorSegment(-i * 35);
-  }
+  // Обновляем карту уровней
+  updateMapNodes();
 
-  // 8. Создание первого 3D сундука (скриншот 4)
-  create3DChest(-75);
+  window.addEventListener('resize', () => {
+    const w = container.clientWidth || window.innerWidth;
+    const h = container.clientHeight || window.innerHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  });
 
-  // Слушатели событий окна
-  window.addEventListener('resize', onWindowResize);
-  setupTouchControls();
-  updateHudValues();
-
-  // Запуск цикла анимации
-  animate3D(0);
+  // Цикл отрисовки
+  animateLoop(0);
 }
 
 // -------------------------------------------------------------
-// СОЗДАНИЕ 3D ФЕИ (БЛУМ / ИГРОК)
+// СОЗДАНИЕ ПЕРСОНАЖА ФЕИ
 // -------------------------------------------------------------
-function createFairyCharacter() {
+function buildPlayerFairy() {
   playerGroup = new THREE.Group();
 
-  // Материалы Winx
-  const skinMat = new THREE.MeshPhongMaterial({ color: 0xffdfcf, shininess: 30 });
-  const hairMat = new THREE.MeshPhongMaterial({ color: 0xff3d00, shininess: 80 }); // Огненные волосы Блум
-  const topMat = new THREE.MeshPhongMaterial({ color: 0x00e5ff, shininess: 60 });  // Бирюзовый топ Блум
-  const pantsMat = new THREE.MeshPhongMaterial({ color: 0x00bcd4, shininess: 60 }); // Брюки клеш
-  const goldMat = new THREE.MeshPhongMaterial({ color: 0xffd700, shininess: 100 });
+  const skinMat = new THREE.MeshPhongMaterial({ color: 0xffdfcf });
+  const hairMat = new THREE.MeshPhongMaterial({ color: 0xff3d00, shininess: 80 });
+  const topMat = new THREE.MeshPhongMaterial({ color: 0x00e5ff, shininess: 50 });
+  const pantsMat = new THREE.MeshPhongMaterial({ color: 0x00bcd4, shininess: 50 });
+  const goldMat = new THREE.MeshPhongMaterial({ color: 0xffd700, shininess: 90 });
 
   // Голова
-  const headGeo = new THREE.SphereGeometry(0.35, 16, 16);
-  const headMesh = new THREE.Mesh(headGeo, skinMat);
-  headMesh.position.y = 2.1;
-  playerGroup.add(headMesh);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), skinMat);
+  head.position.y = 2.1;
+  playerGroup.add(head);
 
-  // Пышные волосы Блум (длинные развевающиеся локоны)
-  const hairGeo = new THREE.ConeGeometry(0.5, 1.4, 8);
-  const hairMesh = new THREE.Mesh(hairGeo, hairMat);
-  hairMesh.position.set(0, 1.8, 0.45);
-  hairMesh.rotation.x = 0.55;
-  playerGroup.add(hairMesh);
+  // Волосы Блум с длинным хвостом
+  const hair = new THREE.Mesh(new THREE.ConeGeometry(0.48, 1.3, 8), hairMat);
+  hair.position.set(0, 1.8, 0.4);
+  hair.rotation.x = 0.5;
+  playerGroup.add(hair);
 
-  // Корона / диадема
-  const crownGeo = new THREE.ConeGeometry(0.15, 0.25, 4);
-  const crownMesh = new THREE.Mesh(crownGeo, goldMat);
-  crownMesh.position.set(0, 2.5, 0);
-  playerGroup.add(crownMesh);
+  // Диадема
+  const tiara = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.22, 4), goldMat);
+  tiara.position.set(0, 2.45, 0);
+  playerGroup.add(tiara);
 
-  // Торс (модельная тонкая талия)
-  const bodyGeo = new THREE.CylinderGeometry(0.18, 0.24, 0.7, 8);
-  const bodyMesh = new THREE.Mesh(bodyGeo, topMat);
-  bodyMesh.position.y = 1.45;
-  playerGroup.add(bodyMesh);
+  // Топ
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.65, 8), topMat);
+  body.position.y = 1.45;
+  playerGroup.add(body);
 
-  // Ноги в бирюзовых расклешенных брюках
-  const legGeo = new THREE.CylinderGeometry(0.08, 0.16, 1.05, 8);
-  const legLeft = new THREE.Mesh(legGeo, pantsMat);
-  legLeft.position.set(-0.16, 0.65, 0);
-  const legRight = new THREE.Mesh(legGeo, pantsMat);
-  legRight.position.set(0.16, 0.65, 0);
-  playerGroup.add(legLeft);
-  playerGroup.add(legRight);
+  // Брючки
+  const legGeo = new THREE.CylinderGeometry(0.08, 0.15, 1.05, 8);
+  const legL = new THREE.Mesh(legGeo, pantsMat);
+  legL.position.set(-0.16, 0.65, 0);
+  const legR = new THREE.Mesh(legGeo, pantsMat);
+  legR.position.set(0.16, 0.65, 0);
+  playerGroup.add(legL);
+  playerGroup.add(legR);
 
-  // СИЯЮЩИЕ ВИТРАЖНЫЕ КРЫЛЬЯ (Анимированные)
+  // Крылья феи
   const wingShape = new THREE.Shape();
   wingShape.moveTo(0, 0);
-  wingShape.quadraticCurveTo(0.8, 1.4, 1.6, 1.8);
-  wingShape.quadraticCurveTo(1.9, 0.8, 1.2, 0.2);
-  wingShape.quadraticCurveTo(1.6, -0.6, 0.9, -1.0);
-  wingShape.quadraticCurveTo(0.3, -0.5, 0, 0);
+  wingShape.quadraticCurveTo(0.7, 1.2, 1.4, 1.6);
+  wingShape.quadraticCurveTo(1.7, 0.7, 1.1, 0.2);
+  wingShape.quadraticCurveTo(1.4, -0.5, 0.8, -0.8);
+  wingShape.quadraticCurveTo(0.2, -0.4, 0, 0);
 
   const wingGeo = new THREE.ShapeGeometry(wingShape);
   const wingMat = new THREE.MeshPhongMaterial({
-    color: 0xff69b4,
+    color: 0xff4081,
     emissive: 0xff1493,
-    emissiveIntensity: 0.35,
+    emissiveIntensity: 0.4,
     side: THREE.DoubleSide,
     transparent: true,
-    opacity: 0.85,
-    shininess: 100
+    opacity: 0.85
   });
 
   fairyWingsLeft = new THREE.Mesh(wingGeo, wingMat);
-  fairyWingsLeft.position.set(-0.1, 1.6, 0.15);
+  fairyWingsLeft.position.set(-0.1, 1.6, 0.1);
   fairyWingsLeft.scale.set(0.7, 0.7, 0.7);
 
   fairyWingsRight = new THREE.Mesh(wingGeo, wingMat);
-  fairyWingsRight.position.set(0.1, 1.6, 0.15);
+  fairyWingsRight.position.set(0.1, 1.6, 0.1);
   fairyWingsRight.scale.set(-0.7, 0.7, 0.7);
 
   playerGroup.add(fairyWingsLeft);
@@ -208,542 +190,862 @@ function createFairyCharacter() {
 }
 
 // -------------------------------------------------------------
-// МАГИЧЕСКИЙ СФЕРИЧЕСКИЙ ЩИТ С НОТАМИ (СКРИНШОТ 1)
+// РОЗОВЫЙ СФЕРИЧЕСКИЙ ЩИТ С НОТАМИ (СКРИНШОТ 1)
 // -------------------------------------------------------------
-function createMagicShield() {
-  const shieldGeo = new THREE.SphereGeometry(2.2, 24, 24);
+function buildMagicShield() {
+  const shieldGeo = new THREE.SphereGeometry(2.3, 24, 24);
   const shieldMat = new THREE.MeshPhongMaterial({
     color: 0xff4081,
     emissive: 0xff007f,
-    emissiveIntensity: 0.6,
+    emissiveIntensity: 0.65,
     transparent: true,
-    opacity: 0.4,
-    wireframe: false,
+    opacity: 0.45,
     side: THREE.DoubleSide
   });
 
-  shieldMesh = new THREE.Mesh(shieldGeo, shieldMat);
-  shieldMesh.visible = false;
-  playerGroup.add(shieldMesh);
+  magicShieldMesh = new THREE.Mesh(shieldGeo, shieldMat);
+  magicShieldMesh.visible = false;
+  playerGroup.add(magicShieldMesh);
 
-  // Вращающиеся ноты вокруг щита
   for (let i = 0; i < 4; i++) {
-    const noteCanvas = document.createElement('canvas');
-    noteCanvas.width = 64;
-    noteCanvas.height = 64;
-    const nctx = noteCanvas.getContext('2d');
-    nctx.font = '40px serif';
-    nctx.fillStyle = '#ffffff';
-    nctx.shadowColor = '#ff4081';
-    nctx.shadowBlur = 10;
-    nctx.fillText('🎶', 10, 48);
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.font = '36px serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = '#ff4081';
+    ctx.shadowBlur = 10;
+    ctx.fillText('🎶', 12, 45);
 
-    const noteTex = new THREE.CanvasTexture(noteCanvas);
-    const noteMat = new THREE.SpriteMaterial({ map: noteTex, transparent: true });
-    const noteSprite = new THREE.Sprite(noteMat);
-    noteSprite.scale.set(1.2, 1.2, 1.2);
-    shieldNotes.push(noteSprite);
-    shieldMesh.add(noteSprite);
+    const tex = new THREE.CanvasTexture(canvas);
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+    sprite.scale.set(1.2, 1.2, 1.2);
+    shieldNotes.push(sprite);
+    magicShieldMesh.add(sprite);
   }
 }
 
-function triggerMagicShield() {
+function activateShield() {
   if (isShieldActive) return;
   isShieldActive = true;
-  shieldMesh.visible = true;
+  magicShieldMesh.visible = true;
   if (window.magicAudio) window.magicAudio.playMagicShield();
 
   setTimeout(() => {
     isShieldActive = false;
-    shieldMesh.visible = false;
-  }, 4000);
+    magicShieldMesh.visible = false;
+  }, 3500);
 }
 
 // -------------------------------------------------------------
-// ПОСТРОЕНИЕ 3D КОРИДОРА АЛФЕИ (В ТОЧНОСТИ СКРИНШОТ 2)
+// МАГИЧЕСКИЙ ВЫСТРЕЛ (ОГНЕННЫЙ ШАР / ЛУЧ СВЕТА)
 // -------------------------------------------------------------
-function createCorridorSegment(startZ) {
-  const segment = new THREE.Group();
-  segment.position.z = startZ;
+function castMagicShot() {
+  if (window.magicAudio) window.magicAudio.playMagicSpell();
 
-  // 1. Пол с красной ковровой дорожкой по центру
-  // Мраморные боковые плиты
-  const floorGeo = new THREE.PlaneGeometry(16, 35);
-  const marbleMat = new THREE.MeshPhongMaterial({ color: 0x2e7d32, shininess: 40 }); // Зеленоватый королевский мрамор
-  const floorMesh = new THREE.Mesh(floorGeo, marbleMat);
-  floorMesh.rotation.x = -Math.PI / 2;
-  segment.add(floorMesh);
+  const orbGeo = new THREE.SphereGeometry(0.35, 12, 12);
+  const orbMat = new THREE.MeshBasicMaterial({ color: 0xff9100 });
+  const projectile = new THREE.Mesh(orbGeo, orbMat);
 
-  // Красная бархатная ковровая дорожка с золотыми узорами (скриншот 2)
-  const carpetGeo = new THREE.PlaneGeometry(5.8, 35);
-  const carpetMat = new THREE.MeshPhongMaterial({
-    color: 0xc2185b, // Насыщенный малиново-красный бархат
-    emissive: 0x880e4f,
-    emissiveIntensity: 0.15,
-    shininess: 20
-  });
-  const carpetMesh = new THREE.Mesh(carpetGeo, carpetMat);
-  carpetMesh.rotation.x = -Math.PI / 2;
-  carpetMesh.position.y = 0.02; // Чуть выше пола
-  segment.add(carpetMesh);
+  projectile.position.copy(playerGroup.position);
+  projectile.position.y += 1.4;
 
-  // Золотые бордюры ковра
-  const borderGeo = new THREE.PlaneGeometry(0.3, 35);
-  const goldBorderMat = new THREE.MeshPhongMaterial({ color: 0xffd700, shininess: 80 });
-  const bLeft = new THREE.Mesh(borderGeo, goldBorderMat);
-  bLeft.rotation.x = -Math.PI / 2;
-  bLeft.position.set(-2.9, 0.03, 0);
-  const bRight = new THREE.Mesh(borderGeo, goldBorderMat);
-  bRight.rotation.x = -Math.PI / 2;
-  bRight.position.set(2.9, 0.03, 0);
-  segment.add(bLeft);
-  segment.add(bRight);
+  const dir = new THREE.Vector3(0, 0, -1).applyEuler(playerGroup.rotation);
+  projectile.userData = { direction: dir, life: 2.0 };
 
-  // 2. Золотые статуи крылатых рыцарей и колонны по бокам (скриншот 2)
-  const colGeo = new THREE.CylinderGeometry(0.6, 0.7, 10, 16);
-  const statueMat = new THREE.MeshPhongMaterial({
-    color: 0xffd700,
-    emissive: 0xff8f00,
-    emissiveIntensity: 0.25,
-    shininess: 100
-  });
+  scene.add(projectile);
+  activeProjectiles.push(projectile);
+}
 
-  for (let zOffset of [-10, 0, 10]) {
-    // Левая золотая колонна
-    const cL = new THREE.Mesh(colGeo, statueMat);
-    cL.position.set(-5.5, 5, zOffset);
-    segment.add(cL);
+// -------------------------------------------------------------
+// ЗАГРУЗКА И ПОСТРОЕНИЕ 3D УРОВНЕЙ С ПРОХОЖДЕНИЕМ
+// -------------------------------------------------------------
+function clearCurrentLevel() {
+  levelObjects.forEach(obj => scene.remove(obj));
+  levelObjects = [];
+  activeProjectiles.forEach(p => scene.remove(p));
+  activeProjectiles = [];
+  if (bossMonster) {
+    scene.remove(bossMonster);
+    bossMonster = null;
+  }
+  levelGemsCollected = 0;
+  hasGardenKey = false;
+  isShieldActive = false;
+  magicShieldMesh.visible = false;
+}
 
-    // Правая золотая колонна
-    const cR = new THREE.Mesh(colGeo, statueMat);
-    cR.position.set(5.5, 5, zOffset);
-    segment.add(cR);
+function loadLevel(levelNum) {
+  clearCurrentLevel();
+  campaignData.currentLevel = levelNum;
 
-    // Золотой щит-статуя на колонне (скриншот 2)
-    const shieldGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.15, 16);
-    const sL = new THREE.Mesh(shieldGeo, statueMat);
-    sL.rotation.z = Math.PI / 2;
-    sL.position.set(-4.7, 4.5, zOffset);
-    const sR = new THREE.Mesh(shieldGeo, statueMat);
-    sR.rotation.z = Math.PI / 2;
-    sR.position.set(4.7, 4.5, zOffset);
-    segment.add(sL);
-    segment.add(sR);
+  // Позиционируем игрока в начало уровня
+  playerGroup.position.set(0, 0, 0);
+  playerGroup.rotation.y = 0;
+
+  if (levelNum === 1) {
+    buildLevel1_Garden();
+  } else if (levelNum === 2) {
+    buildLevel2_Hall();
+  } else if (levelNum === 3) {
+    buildLevel3_Boss();
+  } else if (levelNum === 4) {
+    openFashionLevel();
+    return;
+  } else if (levelNum === 5) {
+    buildLevel5_Throne();
   }
 
-  // 3. Стены и арки зала
-  const wallGeo = new THREE.BoxGeometry(0.8, 12, 35);
-  const wallMat = new THREE.MeshPhongMaterial({ color: 0xfff9c4 }); // Теплый кремовый камень Алфеи
-  const wL = new THREE.Mesh(wallGeo, wallMat);
-  wL.position.set(-7.5, 6, 0);
-  const wR = new THREE.Mesh(wallGeo, wallMat);
-  wR.position.set(7.5, 6, 0);
-  segment.add(wL);
-  segment.add(wR);
+  show3dGameHUD();
+}
 
-  // 4. Спавн 3D розовых кристаллов в сегменте (скриншоты 2, 3, 4)
-  spawnSegmentGems(segment);
+// УРОВЕНЬ 1: САД АЛФЕИ С ВОРОТАМИ И СУНДУКОМ (СКРИНШОТЫ 3 И 4)
+function buildLevel1_Garden() {
+  scene.background = new THREE.Color(0x388e3c);
+  scene.fog = new THREE.FogExp2(0x81c784, 0.012);
 
-  scene.add(segment);
-  corridorSegments.push(segment);
+  targetGemsCount = 10;
+  document.getElementById('quest-text').textContent = 'Собери 10 кристаллов, найди ключ в сундуке и открой ворота!';
+  document.getElementById('hud-gems-count').textContent = `0 / ${targetGemsCount}`;
+
+  // 1. Зелёный газон
+  const lawnGeo = new THREE.PlaneGeometry(60, 100);
+  const lawnMat = new THREE.MeshPhongMaterial({ color: 0x4caf50 });
+  const lawn = new THREE.Mesh(lawnGeo, lawnMat);
+  lawn.rotation.x = -Math.PI / 2;
+  scene.add(lawn);
+  levelObjects.push(lawn);
+
+  // 2. Извилистая каменная дорожка к воротам (скриншот 3)
+  const pathGeo = new THREE.PlaneGeometry(5, 80);
+  const pathMat = new THREE.MeshPhongMaterial({ color: 0xd7ccc8, roughness: 0.9 });
+  const stonePath = new THREE.Mesh(pathGeo, pathMat);
+  stonePath.rotation.x = -Math.PI / 2;
+  stonePath.position.set(0, 0.02, -35);
+  scene.add(stonePath);
+  levelObjects.push(stonePath);
+
+  // 3. Фонарные столбы Алфеи вдоль дорожки (скриншоты 3 и 4)
+  for (let z of [-10, -25, -45]) {
+    createStreetLamp(-3.8, z);
+    createStreetLamp(3.8, z);
+  }
+
+  // 4. Деревья и камни в саду
+  createGardenTree(-8, -15);
+  createGardenTree(9, -20);
+  createGardenTree(-7, -40);
+  createGardenTree(8, -50);
+
+  // 5. Большой камень и сундук с ключом (скриншот 4)
+  const rockGeo = new THREE.DodecahedronGeometry(2.2);
+  const rockMat = new THREE.MeshPhongMaterial({ color: 0x78909c });
+  const rock = new THREE.Mesh(rockGeo, rockMat);
+  rock.position.set(-5, 1.2, -22);
+  scene.add(rock);
+  levelObjects.push(rock);
+
+  createChestObject(-3.2, -22, 'chest_garden');
+
+  // 6. Кованые железные ворота в конце дорожки с каменной аркой (скриншот 3)
+  createGardenGate(0, -68);
+
+  // 7. Розовые кристаллы по саду
+  const gemPositions = [
+    [0, -6], [-1.5, -12], [1.5, -16], [0, -24],
+    [-2, -30], [2, -34], [0, -42], [-1.8, -48],
+    [1.8, -52], [0, -60]
+  ];
+
+  gemPositions.forEach(([gx, gz]) => createPinkGem(gx, gz));
+}
+
+// УРОВЕНЬ 2: ЗАЛ С КРАСНЫМ КОВРОМ (СКРИНШОТ 2)
+function buildLevel2_Hall() {
+  scene.background = new THREE.Color(0x1a0a2a);
+  scene.fog = new THREE.FogExp2(0x1a0a2a, 0.015);
+
+  targetGemsCount = 15;
+  document.getElementById('quest-text').textContent = 'Пройди по красной дорожке до королевской лестницы!';
+  document.getElementById('hud-gems-count').textContent = `0 / ${targetGemsCount}`;
+
+  // Пол и красный бархатный ковер
+  const floorGeo = new THREE.PlaneGeometry(18, 90);
+  const floorMat = new THREE.MeshPhongMaterial({ color: 0x1b5e20 });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.z = -40;
+  scene.add(floor);
+  levelObjects.push(floor);
+
+  const carpetGeo = new THREE.PlaneGeometry(6, 90);
+  const carpetMat = new THREE.MeshPhongMaterial({ color: 0xc2185b, emissive: 0x880e4f, emissiveIntensity: 0.15 });
+  const carpet = new THREE.Mesh(carpetGeo, carpetMat);
+  carpet.rotation.x = -Math.PI / 2;
+  carpet.position.set(0, 0.03, -40);
+  scene.add(carpet);
+  levelObjects.push(carpet);
+
+  // Золотые статуи и колонны (скриншот 2)
+  for (let z of [-10, -25, -40, -55, -70]) {
+    createKnightStatue(-5.5, z);
+    createKnightStatue(5.5, z);
+  }
+
+  // Роскошная лестница в конце (скриншот 2)
+  for (let step = 0; step < 8; step++) {
+    const stepGeo = new THREE.BoxGeometry(10, 0.4, 1.2);
+    const stepMat = new THREE.MeshPhongMaterial({ color: 0xffd700 });
+    const stepMesh = new THREE.Mesh(stepGeo, stepMat);
+    stepMesh.position.set(0, 0.2 + step * 0.4, -78 - step * 1.2);
+    scene.add(stepMesh);
+    levelObjects.push(stepMesh);
+  }
+
+  // Кристаллы вдоль ковра
+  for (let i = 0; i < 15; i++) {
+    const laneX = (i % 3 === 0) ? -1.8 : (i % 3 === 1 ? 0 : 1.8);
+    createPinkGem(laneX, -5 - i * 4.6);
+  }
+}
+
+// УРОВЕНЬ 3: ЛЕДЯНАЯ БИТВА С МОНСТРОМ ТРИКС (СКРИНШОТ 1)
+function buildLevel3_Boss() {
+  scene.background = new THREE.Color(0x0a192f);
+  scene.fog = new THREE.FogExp2(0x00e5ff, 0.018);
+
+  targetGemsCount = 100; // Босс HP
+  bossHp = 100;
+  document.getElementById('quest-text').textContent = 'Битва! Отражай атаки щитом 🛡️ и стреляй магией ⚡!';
+  document.getElementById('hud-gems-count').textContent = `Босс: ${bossHp} HP`;
+
+  const arenaGeo = new THREE.CircleGeometry(25, 32);
+  const arenaMat = new THREE.MeshPhongMaterial({ color: 0x006064 });
+  const arena = new THREE.Mesh(arenaGeo, arenaMat);
+  arena.rotation.x = -Math.PI / 2;
+  arena.position.z = -15;
+  scene.add(arena);
+  levelObjects.push(arena);
+
+  // Создаем 3D монстра Трикс (синее крылатое существо как на скриншоте 1)
+  bossMonster = new THREE.Group();
+  bossMonster.position.set(0, 0, -20);
+
+  const monsterMat = new THREE.MeshPhongMaterial({ color: 0x1565c0, emissive: 0x0d47a1, emissiveIntensity: 0.4 });
+  const bodyMesh = new THREE.Mesh(new THREE.ConeGeometry(1.2, 3.5, 8), monsterMat);
+  bodyMesh.position.y = 2.2;
+  bossMonster.add(bodyMesh);
+
+  // Голова монстра с светящимися зелеными глазами
+  const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.7, 12, 12), monsterMat);
+  headMesh.position.y = 4.2;
+  bossMonster.add(headMesh);
+
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x00e676 });
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), eyeMat);
+  eyeL.position.set(-0.25, 4.3, 0.6);
+  const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), eyeMat);
+  eyeR.position.set(0.25, 4.3, 0.6);
+  bossMonster.add(eyeL);
+  bossMonster.add(eyeR);
+
+  // Ледяные шипы монстра
+  const spikeMat = new THREE.MeshPhongMaterial({ color: 0x00e5ff });
+  for (let a = 0; a < 4; a++) {
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.8, 6), spikeMat);
+    spike.position.set(Math.cos(a) * 1.5, 2.5, Math.sin(a) * 1.5);
+    bossMonster.add(spike);
+  }
+
+  scene.add(bossMonster);
+
+  // Периодическая атака босса ледяными снарядами
+  let bossAttackTimer = setInterval(() => {
+    if (!bossMonster || bossHp <= 0 || !isPlaying3D) {
+      clearInterval(bossAttackTimer);
+      return;
+    }
+
+    // Выстрел льдом
+    const iceGeo = new THREE.DodecahedronGeometry(0.45);
+    const iceMat = new THREE.MeshPhongMaterial({ color: 0x00e5ff, emissive: 0x00b0ff });
+    const iceOrb = new THREE.Mesh(iceGeo, iceMat);
+    iceOrb.position.copy(bossMonster.position);
+    iceOrb.position.y = 3.0;
+
+    const dir = new THREE.Vector3().subVectors(playerGroup.position, bossMonster.position).normalize();
+    iceOrb.userData = { direction: dir, life: 3.0, isEnemy: true };
+    scene.add(iceOrb);
+    activeProjectiles.push(iceOrb);
+
+    if (window.magicAudio) window.magicAudio.playMagicSpell();
+  }, 2400);
+}
+
+// УРОВЕНЬ 5: ТРОННЫЙ ЗАЛ И ЗОЛОТОЙ ЛАРЕЦ
+function buildLevel5_Throne() {
+  scene.background = new THREE.Color(0x4a148c);
+  scene.fog = new THREE.FogExp2(0x4a148c, 0.015);
+
+  document.getElementById('quest-text').textContent = 'Подойди к Золотому Ларцу и открой послание Любви!';
+  document.getElementById('hud-gems-count').textContent = `👑 Финал`;
+
+  // Золотой ковер тронного зала
+  const hallGeo = new THREE.PlaneGeometry(16, 50);
+  const hallMat = new THREE.MeshPhongMaterial({ color: 0xffd700, shininess: 80 });
+  const floor = new THREE.Mesh(hallGeo, hallMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.z = -20;
+  scene.add(floor);
+  levelObjects.push(floor);
+
+  // Золотой Ларец в центре зала
+  createChestObject(0, -25, 'chest_throne');
+}
+
+// Вспомогательные функции построения декораций
+function createStreetLamp(x, z) {
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 4.5, 8), new THREE.MeshPhongMaterial({ color: 0x5d4037 }));
+  post.position.set(x, 2.25, z);
+  const lamp = new THREE.Mesh(new THREE.DodecahedronGeometry(0.45), new THREE.MeshBasicMaterial({ color: 0xffd54f }));
+  lamp.position.set(x, 4.6, z);
+  scene.add(post);
+  scene.add(lamp);
+  levelObjects.push(post, lamp);
+}
+
+function createGardenTree(x, z) {
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 3.5, 8), new THREE.MeshPhongMaterial({ color: 0x4e342e }));
+  trunk.position.set(x, 1.75, z);
+  const crown = new THREE.Mesh(new THREE.DodecahedronGeometry(2.2), new THREE.MeshPhongMaterial({ color: 0x2e7d32 }));
+  crown.position.set(x, 4.5, z);
+  scene.add(trunk);
+  scene.add(crown);
+  levelObjects.push(trunk, crown);
+}
+
+function createKnightStatue(x, z) {
+  const col = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.7, 9, 16), new THREE.MeshPhongMaterial({ color: 0xffd700, shininess: 100 }));
+  col.position.set(x, 4.5, z);
+  const shield = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.15, 16), new THREE.MeshPhongMaterial({ color: 0xffd700, shininess: 100 }));
+  shield.rotation.z = Math.PI / 2;
+  shield.position.set(x > 0 ? x - 0.7 : x + 0.7, 4.2, z);
+  scene.add(col);
+  scene.add(shield);
+  levelObjects.push(col, shield);
+}
+
+function createGardenGate(x, z) {
+  const arch = new THREE.Mesh(new THREE.TorusGeometry(3.5, 0.45, 8, 24, Math.PI), new THREE.MeshPhongMaterial({ color: 0x37474f }));
+  arch.position.set(x, 4.5, z);
+  const gateLeft = new THREE.Mesh(new THREE.BoxGeometry(2.5, 4.5, 0.15), new THREE.MeshPhongMaterial({ color: 0x263238, transparent: true, opacity: 0.9 }));
+  gateLeft.position.set(x - 1.3, 2.25, z);
+  const gateRight = new THREE.Mesh(new THREE.BoxGeometry(2.5, 4.5, 0.15), new THREE.MeshPhongMaterial({ color: 0x263238, transparent: true, opacity: 0.9 }));
+  gateRight.position.set(x + 1.3, 2.25, z);
+
+  scene.add(arch);
+  scene.add(gateLeft);
+  scene.add(gateRight);
+  levelObjects.push(arch, gateLeft, gateRight);
+
+  // Зона ворот
+  arch.userData = { type: 'gate', z: z, open: false, leftWing: gateLeft, rightWing: gateRight };
+}
+
+function createChestObject(x, z, chestId) {
+  const chestGroup = new THREE.Group();
+  chestGroup.position.set(x, 0, z);
+
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.0, 1.2), new THREE.MeshPhongMaterial({ color: 0x6a1b9a }));
+  base.position.y = 0.5;
+  const trim = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.15, 1.25), new THREE.MeshPhongMaterial({ color: 0xffd700, shininess: 100 }));
+  trim.position.y = 0.95;
+  const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.8, 16, 1, false, 0, Math.PI), new THREE.MeshPhongMaterial({ color: 0x6a1b9a }));
+  lid.rotation.z = Math.PI / 2;
+  lid.position.set(0, 1.0, 0.6);
+
+  chestGroup.add(base, trim, lid);
+  chestGroup.userData = { type: 'chest', id: chestId, open: false, lid: lid };
+
+  scene.add(chestGroup);
+  levelObjects.push(chestGroup);
+}
+
+function createPinkGem(x, z) {
+  const gem = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.55, 0),
+    new THREE.MeshPhongMaterial({
+      color: 0xff1493,
+      emissive: 0xff4081,
+      emissiveIntensity: 0.7,
+      shininess: 100,
+      transparent: true,
+      opacity: 0.95
+    })
+  );
+  gem.position.set(x, 1.2, z);
+  gem.userData = { type: 'gem', collected: false, baseY: 1.2 };
+  scene.add(gem);
+  levelObjects.push(gem);
 }
 
 // -------------------------------------------------------------
-// СПАВН РОЗОВЫХ 3D КРИСТАЛЛОВ (СКРИНШОТЫ 2, 3, 4)
+// ИНТЕРАКТИВНОЕ ВЗАИМОДЕЙСТВИЕ (ОТКРЫВАНИЕ СУНДУКОВ И ВОРОТ)
 // -------------------------------------------------------------
-function spawnSegmentGems(segment) {
-  // Октаэдр — точная граненая форма кристалла из скриншота!
-  const gemGeo = new THREE.OctahedronGeometry(0.55, 0);
-  const gemMat = new THREE.MeshPhongMaterial({
-    color: 0xff1493,
-    emissive: 0xff4081,
-    emissiveIntensity: 0.65,
-    shininess: 100,
-    transparent: true,
-    opacity: 0.95
-  });
+function handleInteractAction() {
+  if (!activeInteractAction) return;
 
-  const rowPositions = [-12, -4, 4, 12];
-  rowPositions.forEach(z => {
-    // Выбираем случайную полосу из 3 (левая, центр, правая)
-    const laneIndex = Math.floor(Math.random() * 3);
-    const gem = new THREE.Mesh(gemGeo, gemMat);
-    gem.position.set(LANES[laneIndex], 1.2, z);
-    gem.userData = { baseY: 1.2, collected: false };
-    segment.add(gem);
-    gems3D.push(gem);
-  });
+  const btn = document.getElementById('btn-interact');
+  btn.classList.add('hidden');
+
+  if (activeInteractAction.type === 'chest') {
+    const chest = activeInteractAction.obj;
+    chest.userData.open = true;
+    if (chest.userData.lid) chest.userData.lid.rotation.x = -1.5;
+
+    if (window.magicAudio) window.magicAudio.playCollect(true);
+
+    if (chest.userData.id === 'chest_garden') {
+      hasGardenKey = true;
+      document.getElementById('quest-text').textContent = '🗝️ Ключ получен! Теперь открой Большие Ворота!';
+      alert('Ты нашла Ключ от Ворот Алфеи! 🗝️✨');
+    } else if (chest.userData.id === 'chest_throne') {
+      showFinalLetterModal();
+    }
+  } else if (activeInteractAction.type === 'gate') {
+    const gate = activeInteractAction.obj;
+    if (hasGardenKey && levelGemsCollected >= targetGemsCount) {
+      gate.userData.open = true;
+      gate.userData.leftWing.position.x -= 2.0;
+      gate.userData.rightWing.position.x += 2.0;
+      if (window.magicAudio) window.magicAudio.playEnchantixFanfare();
+      triggerLevelWin(1);
+    } else {
+      alert('Ворота заперты! Собери все 10 кристаллов и найди ключ в сундуке под камнем!');
+    }
+  }
+
+  activeInteractAction = null;
 }
 
-// -------------------------------------------------------------
-// ВОЛШЕБНЫЙ 3D СУНДУК (В ТОЧНОСТИ СКРИНШОТ 4)
-// -------------------------------------------------------------
-function create3DChest(zPos) {
-  chest3D = new THREE.Group();
-  chest3D.position.set(0, 0, zPos);
-
-  const woodMat = new THREE.MeshPhongMaterial({ color: 0x6a1b9a, shininess: 30 }); // Фиолетовое дерево
-  const goldTrim = new THREE.MeshPhongMaterial({ color: 0xffd700, shininess: 100 });
-
-  // Основание сундука
-  const baseGeo = new THREE.BoxGeometry(2.0, 1.1, 1.3);
-  const baseMesh = new THREE.Mesh(baseGeo, woodMat);
-  baseMesh.position.y = 0.55;
-  chest3D.add(baseMesh);
-
-  // Золотые уголки
-  const trimGeo = new THREE.BoxGeometry(2.05, 0.2, 1.35);
-  const trimMesh = new THREE.Mesh(trimGeo, goldTrim);
-  trimMesh.position.y = 1.0;
-  chest3D.add(trimMesh);
-
-  // Крышка сундука (с вращением открытия!)
-  chestLid = new THREE.Group();
-  chestLid.position.set(0, 1.1, 0.65);
-
-  const lidGeo = new THREE.CylinderGeometry(0.65, 0.65, 2.0, 16, 1, false, 0, Math.PI);
-  const lidMesh = new THREE.Mesh(lidGeo, woodMat);
-  lidMesh.rotation.z = Math.PI / 2;
-  chestLid.add(lidMesh);
-
-  chest3D.add(chestLid);
-  scene.add(chest3D);
-}
-
-function openChest() {
-  if (isChestOpen) return;
-  isChestOpen = true;
+function triggerLevelWin(levelNum) {
+  isPlaying3D = false;
+  if (campaignData.unlockedLevel <= levelNum && campaignData.unlockedLevel < 5) {
+    campaignData.unlockedLevel = levelNum + 1;
+  }
+  campaignData.levelStars[levelNum] = 3;
+  campaignData.diamondsTotal += 20;
+  saveCampaign();
 
   if (window.magicAudio) window.magicAudio.playEnchantixFanfare();
 
-  // Анимация открывания крышки
-  let openAngle = 0;
-  const openInterval = setInterval(() => {
-    openAngle += 0.08;
-    if (chestLid) chestLid.rotation.x = -openAngle;
-    if (openAngle >= 1.6) {
-      clearInterval(openAngle);
-      showChestModal();
-    }
-  }, 20);
-}
-
-function showChestModal() {
-  game3dState.diamonds += 15;
-  game3dState.stars += 50;
-  save3d();
-
-  const modal = document.getElementById('chest-modal');
-  if (modal) modal.classList.remove('hidden');
+  const winModal = document.getElementById('modal-level-win');
+  if (winModal) {
+    document.getElementById('win-desc-text').textContent = `Уровень ${levelNum} успешно пройден! Открыта следующая глава!`;
+    winModal.classList.remove('hidden');
+  }
 }
 
 // -------------------------------------------------------------
-// СИСТЕМА УПРАВЛЕНИЯ СВАЙПАМИ НА IPHONE
+// СЕНСОРНОЕ УПРАВЛЕНИЕ И СЛУШАТЕЛИ КНОПОК
 // -------------------------------------------------------------
-function setupTouchControls() {
-  let touchStartX = 0;
-  let touchStartY = 0;
-  let touchStartTime = 0;
+function setupControls() {
+  // D-Pad для ходьбы во все стороны (сенсорный ввод на мобильном)
+  const dpadBtns = document.querySelectorAll('.dpad-btn');
+  dpadBtns.forEach(btn => {
+    const dir = btn.dataset.dir;
 
-  window.addEventListener('touchstart', (e) => {
-    touchStartX = e.changedTouches[0].clientX;
-    touchStartY = e.changedTouches[0].clientY;
-    touchStartTime = Date.now();
-  }, { passive: true });
+    btn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      inputState[dir] = true;
+    });
 
-  window.addEventListener('touchend', (e) => {
-    const deltaX = e.changedTouches[0].clientX - touchStartX;
-    const deltaY = e.changedTouches[0].clientY - touchStartY;
-    const elapsed = Date.now() - touchStartTime;
+    btn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      inputState[dir] = false;
+    });
 
-    // Свайп по горизонтали (смена полосы: влево / вправо)
-    if (Math.abs(deltaX) > 35 && Math.abs(deltaX) > Math.abs(deltaY)) {
-      if (deltaX > 0 && currentLane < 2) {
-        currentLane++; // Вправо
-        if (window.magicAudio) window.magicAudio.playWingFlap();
-      } else if (deltaX < 0 && currentLane > 0) {
-        currentLane--; // Влево
-        if (window.magicAudio) window.magicAudio.playWingFlap();
-      }
-    }
-    // Свайп вверх (прыжок / взмах крыльев)
-    else if (deltaY < -35 && Math.abs(deltaY) > Math.abs(deltaX)) {
-      performJump();
-    }
-    // Простой короткий тап по экрану (включение щита)
-    else if (elapsed < 250 && Math.abs(deltaX) < 15 && Math.abs(deltaY) < 15) {
-      triggerMagicShield();
-    }
-  }, { passive: true });
-
-  // Клавиатура для тестирования на ПК (стрелочки влево/вправо/вверх)
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft' && currentLane > 0) currentLane--;
-    if (e.key === 'ArrowRight' && currentLane < 2) currentLane++;
-    if (e.key === 'ArrowUp' || e.key === ' ') performJump();
-    if (e.key === 's') triggerMagicShield();
+    btn.addEventListener('mousedown', () => { inputState[dir] = true; });
+    btn.addEventListener('mouseup', () => { inputState[dir] = false; });
   });
 
-  // Кнопка щита
-  document.getElementById('btn-cast-shield').onclick = triggerMagicShield;
-
-  // Кнопка моды / гардероба (скриншот 5)
-  document.getElementById('btn-switch-mode').onclick = openSalon;
-  document.getElementById('salon-back-btn').onclick = closeSalon;
-
-  // Модалка сундука
-  document.getElementById('close-chest-modal').onclick = () => {
-    document.getElementById('chest-modal').classList.add('hidden');
-  };
-  document.getElementById('continue-running-btn').onclick = () => {
-    document.getElementById('chest-modal').classList.add('hidden');
-    // Перемещаем сундук дальше вперед
-    if (chest3D) {
-      chest3D.position.z = playerGroup.position.z - 90;
-      isChestOpen = false;
-      if (chestLid) chestLid.rotation.x = 0;
+  // Кнопки действий
+  document.getElementById('btn-spell-shoot').onclick = castMagicShot;
+  document.getElementById('btn-spell-shield').onclick = activateShield;
+  document.getElementById('btn-jump').onclick = () => {
+    if (!isJumping) {
+      isJumping = true;
+      playerVelocityY = 9.5;
+      if (window.magicAudio) window.magicAudio.playWingFlap();
     }
   };
 
-  // Звук
-  document.getElementById('btn-toggle-sound').onclick = () => {
-    if (window.magicAudio) {
-      const en = window.magicAudio.toggleSound();
-      document.getElementById('btn-toggle-sound').textContent = en ? '🔊' : '🔇';
+  document.getElementById('btn-interact').onclick = handleInteractAction;
+
+  // Клавиатура на ПК
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp' || e.key === 'w') inputState.up = true;
+    if (e.key === 'ArrowDown' || e.key === 's') inputState.down = true;
+    if (e.key === 'ArrowLeft' || e.key === 'a') inputState.left = true;
+    if (e.key === 'ArrowRight' || e.key === 'd') inputState.right = true;
+    if (e.key === ' ' && !isJumping) {
+      isJumping = true;
+      playerVelocityY = 9.5;
+      if (window.magicAudio) window.magicAudio.playWingFlap();
     }
+    if (e.key === 'e') handleInteractAction();
+    if (e.key === 'q') castMagicShot();
+    if (e.key === 'f') activateShield();
+  });
+
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'ArrowUp' || e.key === 'w') inputState.up = false;
+    if (e.key === 'ArrowDown' || e.key === 's') inputState.down = false;
+    if (e.key === 'ArrowLeft' || e.key === 'a') inputState.left = false;
+    if (e.key === 'ArrowRight' || e.key === 'd') inputState.right = false;
+  });
+
+  // Кнопка возврата к Карте
+  document.getElementById('btn-pause-map').onclick = () => {
+    isPlaying3D = false;
+    showCampaignMap();
+  };
+
+  // Кнопка старта с карты
+  document.getElementById('btn-start-current-lvl').onclick = () => {
+    loadLevel(campaignData.currentLevel);
+  };
+
+  // Кнопка следующего уровня в окне победы
+  document.getElementById('btn-next-level').onclick = () => {
+    document.getElementById('modal-level-win').classList.add('hidden');
+    if (campaignData.currentLevel < 5) {
+      loadLevel(campaignData.currentLevel + 1);
+    } else {
+      showFinalLetterModal();
+    }
+  };
+
+  // Кнопка выхода из салона
+  document.getElementById('salon-back-btn').onclick = () => {
+    document.getElementById('screen-salon').classList.add('hidden');
+    showCampaignMap();
+  };
+
+  document.getElementById('btn-salon-ready').onclick = () => {
+    document.getElementById('screen-salon').classList.add('hidden');
+    triggerLevelWin(4);
+  };
+
+  document.getElementById('btn-final-finish').onclick = () => {
+    document.getElementById('modal-final-letter').classList.add('hidden');
+    showCampaignMap();
   };
 }
 
-function performJump() {
-  if (isJumping) return;
-  isJumping = true;
-  playerVelocityY = 9.0;
-  if (window.magicAudio) window.magicAudio.playWingFlap();
-}
-
 // -------------------------------------------------------------
-// ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ 3D (ANIMATE)
+// ГЛАВНЫЙ ЦИКЛ 3D (ANIMATE)
 // -------------------------------------------------------------
-let prevTime = 0;
+let lastTime = 0;
 
-function animate3D(timestamp) {
-  requestAnimationFrame(animate3D);
+function animateLoop(now) {
+  requestAnimationFrame(animateLoop);
 
-  const delta = Math.min((timestamp - prevTime) / 1000, 0.1);
-  prevTime = timestamp;
-  const time = timestamp * 0.001;
+  const delta = Math.min((now - lastTime) / 1000, 0.1);
+  lastTime = now;
+  const time = now * 0.001;
 
-  if (isGameRunning && playerGroup) {
-    // 1. Движение вперед по коридору
-    playerGroup.position.z -= playerSpeedZ * delta;
+  if (isPlaying3D && playerGroup) {
+    // 1. Движение феи по направлению D-Pad
+    let moveX = 0;
+    let moveZ = 0;
+    const speed = 10.0;
 
-    // 2. Плавный переход на выбранную полосу (Left, Center, Right)
-    targetX = LANES[currentLane];
-    playerGroup.position.x += (targetX - playerGroup.position.x) * 12.0 * delta;
+    if (inputState.up) moveZ -= 1;
+    if (inputState.down) moveZ += 1;
+    if (inputState.left) moveX -= 1;
+    if (inputState.right) moveX += 1;
 
-    // 3. Физика прыжка
+    if (moveX !== 0 || moveZ !== 0) {
+      const moveVec = new THREE.Vector2(moveX, moveZ).normalize();
+      playerGroup.position.x += moveVec.x * speed * delta;
+      playerGroup.position.z += moveVec.y * speed * delta;
+
+      // Плавный поворот в сторону движения
+      const targetAngle = Math.atan2(-moveVec.x, -moveVec.y);
+      playerGroup.rotation.y = targetAngle;
+    }
+
+    // 2. Прыжок и гравитация
     if (isJumping) {
-      playerVelocityY -= 22.0 * delta; // гравитация
-      playerY += playerVelocityY * delta;
-      if (playerY <= 0) {
-        playerY = 0;
+      playerVelocityY -= 24.0 * delta;
+      playerGroup.position.y += playerVelocityY * delta;
+      if (playerGroup.position.y <= 0) {
+        playerGroup.position.y = 0;
         playerVelocityY = 0;
         isJumping = false;
       }
+    } else {
+      // Покачивание при ходьбе
+      const walkBob = (moveX !== 0 || moveZ !== 0) ? Math.sin(time * 14) * 0.08 : 0;
+      playerGroup.position.y = walkBob;
     }
 
-    // Покачивание при беге
-    const runBounce = isJumping ? 0 : Math.sin(time * 14) * 0.08;
-    playerGroup.position.y = playerY + runBounce;
+    // Взмахи крыльев
+    const flap = Math.sin(time * (isJumping ? 25 : 10)) * 0.55;
+    if (fairyWingsLeft) fairyWingsLeft.rotation.y = flap;
+    if (fairyWingsRight) fairyWingsRight.rotation.y = -flap;
 
-    // 4. Взмахи крыльев феи
-    const wingFlap = Math.sin(time * (isJumping ? 25 : 12)) * 0.55;
-    if (fairyWingsLeft) fairyWingsLeft.rotation.y = wingFlap;
-    if (fairyWingsRight) fairyWingsRight.rotation.y = -wingFlap;
-
-    // 5. Вращение щита и нот вокруг феи (скриншот 1)
-    if (isShieldActive && shieldMesh) {
-      shieldMesh.rotation.y += 2.0 * delta;
+    // Вращение щита (скриншот 1)
+    if (isShieldActive && magicShieldMesh) {
+      magicShieldMesh.rotation.y += 2.2 * delta;
       shieldNotes.forEach((note, i) => {
-        const angle = time * 2.5 + (i * Math.PI / 2);
-        note.position.set(Math.cos(angle) * 2.4, Math.sin(time * 3 + i) * 0.4, Math.sin(angle) * 2.4);
+        const ang = time * 2.8 + (i * Math.PI / 2);
+        note.position.set(Math.cos(ang) * 2.4, Math.sin(time * 3 + i) * 0.35, Math.sin(ang) * 2.4);
       });
     }
 
-    // 6. Камера плавно летит за спиной феи (как на скриншотах 2 и 3)
-    camera.position.x = playerGroup.position.x * 0.45;
-    camera.position.y = playerGroup.position.y + 3.8;
-    camera.position.z = playerGroup.position.z + 6.8;
-    camera.lookAt(playerGroup.position.x * 0.25, playerGroup.position.y + 1.6, playerGroup.position.z - 15);
+    // 3. Камера третьего лица (следит за феей)
+    camera.position.x = playerGroup.position.x * 0.4;
+    camera.position.y = playerGroup.position.y + 4.2;
+    camera.position.z = playerGroup.position.z + 7.5;
+    camera.lookAt(playerGroup.position.x * 0.2, playerGroup.position.y + 1.8, playerGroup.position.z - 12);
 
-    // 7. Вращение 3D кристаллов и проверка сбора (скриншоты 2 и 4)
-    gems3D.forEach((gem) => {
-      if (!gem.userData.collected) {
-        gem.rotation.y += 2.5 * delta;
-        gem.rotation.x = Math.sin(time * 2) * 0.2;
-        gem.position.y = gem.userData.baseY + Math.sin(time * 3 + gem.position.x) * 0.15;
+    // 4. Полет магических снарядов
+    for (let i = activeProjectiles.length - 1; i >= 0; i--) {
+      const p = activeProjectiles[i];
+      p.position.addScaledVector(p.userData.direction, 22.0 * delta);
+      p.userData.life -= delta;
 
-        // Расчет дистанции в мировых координатах
-        const worldPos = new THREE.Vector3();
-        gem.getWorldPosition(worldPos);
+      // Коллизия с боссом
+      if (!p.userData.isEnemy && bossMonster && bossHp > 0) {
+        if (p.position.distanceTo(bossMonster.position) < 2.5) {
+          bossHp = Math.max(0, bossHp - 25);
+          document.getElementById('hud-gems-count').textContent = `Босс: ${bossHp} HP`;
+          scene.remove(p);
+          activeProjectiles.splice(i, 1);
 
-        const dist = playerGroup.position.distanceTo(worldPos);
-        if (dist < 1.4) {
-          // Кристалл собран!
-          gem.userData.collected = true;
-          gem.visible = false;
-          game3dState.diamonds = Math.min(60, game3dState.diamonds + 1);
-          save3d();
+          if (bossHp <= 0) {
+            triggerLevelWin(3);
+          }
+          continue;
+        }
+      }
+
+      // Коллизия вражеского льда с щитом игрока
+      if (p.userData.isEnemy) {
+        if (p.position.distanceTo(playerGroup.position) < 2.5) {
+          if (isShieldActive) {
+            // Щит отразил атаку!
+            scene.remove(p);
+            activeProjectiles.splice(i, 1);
+            if (window.magicAudio) window.magicAudio.playMagicShield();
+          }
+        }
+      }
+
+      if (p.userData.life <= 0) {
+        scene.remove(p);
+        activeProjectiles.splice(i, 1);
+      }
+    }
+
+    // 5. Вращение кристаллов и сбор (скриншоты 2 и 4)
+    levelObjects.forEach(obj => {
+      if (obj.userData && obj.userData.type === 'gem' && !obj.userData.collected) {
+        obj.rotation.y += 2.5 * delta;
+        obj.position.y = obj.userData.baseY + Math.sin(time * 3 + obj.position.x) * 0.15;
+
+        if (playerGroup.position.distanceTo(obj.position) < 1.4) {
+          obj.userData.collected = true;
+          obj.visible = false;
+          levelGemsCollected++;
+          document.getElementById('hud-gems-count').textContent = `${levelGemsCollected} / ${targetGemsCount}`;
 
           if (window.magicAudio) window.magicAudio.playCollect(false);
+
+          if (campaignData.currentLevel === 2 && levelGemsCollected >= targetGemsCount) {
+            triggerLevelWin(2);
+          }
         }
       }
     });
 
-    // 8. Проверка приближения к 3D сундуку (скриншот 4)
-    if (chest3D && !isChestOpen) {
-      const distToChest = playerGroup.position.distanceTo(chest3D.position);
-      if (distToChest < 3.5) {
-        openChest();
-      }
-    }
-
-    // 9. Бесконечная генерация коридора: если сегмент позади камеры, перемещаем вперед
-    corridorSegments.forEach((seg) => {
-      if (seg.position.z > playerGroup.position.z + 30) {
-        // Находим самый дальний сегмент
-        let minZ = 0;
-        corridorSegments.forEach(s => { if (s.position.z < minZ) minZ = s.position.z; });
-        seg.position.z = minZ - 35;
-
-        // Обновляем кристаллы в сегменте
-        seg.children.forEach(child => {
-          if (child.userData && child.userData.baseY !== undefined) {
-            child.userData.collected = false;
-            child.visible = true;
-          }
-        });
-      }
-    });
+    // 6. Проверка приближения к сундуку или воротам
+    checkInteractions();
   }
 
   renderer.render(scene, camera);
 }
 
-function onWindowResize() {
-  const container = document.getElementById('viewport-3d');
-  const width = container.clientWidth || window.innerWidth;
-  const height = container.clientHeight || window.innerHeight;
-  camera.aspect = width / height;
-  camera.updateProjectionMatrix();
-  renderer.setSize(width, height);
+function checkInteractions() {
+  const interactBtn = document.getElementById('btn-interact');
+  let found = false;
+
+  levelObjects.forEach(obj => {
+    if (obj.userData && obj.userData.type === 'chest' && !obj.userData.open) {
+      if (playerGroup.position.distanceTo(obj.position) < 3.2) {
+        found = true;
+        activeInteractAction = { type: 'chest', obj: obj };
+        interactBtn.querySelector('span').textContent = '✨ ОТКРЫТЬ СУНДУК ✨';
+      }
+    } else if (obj.userData && obj.userData.type === 'gate' && !obj.userData.open) {
+      if (Math.abs(playerGroup.position.z - obj.userData.z) < 4.0 && Math.abs(playerGroup.position.x) < 4.0) {
+        found = true;
+        activeInteractAction = { type: 'gate', obj: obj };
+        interactBtn.querySelector('span').textContent = '🗝️ ОТКРЫТЬ ВОРОТА 🗝️';
+      }
+    }
+  });
+
+  if (found) {
+    interactBtn.classList.remove('hidden');
+  } else {
+    interactBtn.classList.add('hidden');
+    activeInteractAction = null;
+  }
 }
 
 // -------------------------------------------------------------
-// МОДНЫЙ САЛОН / ГАРДЕРОБНАЯ (В ТОЧНОСТИ СКРИНШОТ 5)
+// ЭКРАНЫ И НАВИГАЦИЯ
 // -------------------------------------------------------------
-const SALON_ITEMS = {
-  bags: [
-    { id: 'shell_bag', name: 'Жемчужная ракушка', emoji: '🐚', cost: 0 },
-    { id: 'violet_shell', name: 'Лиловая сумка', emoji: '👛', cost: 5 },
-    { id: 'heart_pink', name: 'Розовое сердце', emoji: '💖', cost: 8 },
-    { id: 'bow_yellow', name: 'Сумочка с бантом', emoji: '🎀', cost: 12 },
-    { id: 'rainbow_bag', name: 'Радужный клатч', emoji: '🌈', cost: 15 },
-    { id: 'leather_pack', name: 'Школьный ранец', emoji: '🎒', cost: 18 }
-  ],
-  shoes: [
-    { id: 'fairy_boots', name: 'Хрустальные туфли', emoji: '👠', cost: 0 },
-    { id: 'pink_heels', name: 'Розовые шпильки', emoji: '👡', cost: 6 },
-    { id: 'glitter_boots', name: 'Сапожки Энчантикс', emoji: '👢', cost: 12 }
-  ],
-  hair: [
-    { id: 'bloom_red', name: 'Локоны Блум', emoji: '🧡', cost: 0 },
-    { id: 'stella_gold', name: 'Золото Стеллы', emoji: '💛', cost: 10 },
-    { id: 'flora_curls', name: 'Кудри Флоры', emoji: '🤎', cost: 14 }
-  ],
-  wings: [
-    { id: 'enchantix_wings', name: 'Крылья Энчантикс', emoji: '🧚‍♀️', cost: 0 },
-    { id: 'believix_wings', name: 'Крылья Беливикс', emoji: '✨', cost: 20 },
-    { id: 'sun_wings', name: 'Крылья Сияния', emoji: '☀️', cost: 25 }
-  ],
-  tops: [
-    { id: 'bloom_top', name: 'Бирюзовый топ', emoji: '🎽', cost: 0 },
-    { id: 'stella_top', name: 'Оранжевое сияние', emoji: '👚', cost: 8 },
-    { id: 'ball_corset', name: 'Бальный корсет', emoji: '✨', cost: 15 }
-  ],
-  skirts: [
-    { id: 'bloom_pants', name: 'Брюки клеш', emoji: '👖', cost: 0 },
-    { id: 'stella_skirt', name: 'Юбочка с воланами', emoji: '👗', cost: 8 },
-    { id: 'ball_skirt', name: 'Шёлковая юбка', emoji: '👑', cost: 15 }
-  ]
-};
-
-let currentCat = 'bags';
-
-function openSalon() {
-  document.getElementById('screen-salon').classList.remove('hidden');
-  document.getElementById('hud-3d').style.display = 'none';
-  renderSalonCategories();
-  renderSalonGrid(currentCat);
-  renderSalonFairyPreview();
-}
-
-function closeSalon() {
+function showCampaignMap() {
+  document.getElementById('screen-map').classList.remove('hidden');
+  document.getElementById('hud-3d').classList.add('hidden');
   document.getElementById('screen-salon').classList.add('hidden');
-  document.getElementById('hud-3d').style.display = 'flex';
+  updateMapNodes();
 }
 
-function renderSalonCategories() {
-  document.querySelectorAll('.circle-cat-btn').forEach(btn => {
-    btn.onclick = () => {
-      document.querySelectorAll('.circle-cat-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentCat = btn.dataset.cat;
-      renderSalonGrid(currentCat);
+function show3dGameHUD() {
+  document.getElementById('screen-map').classList.add('hidden');
+  document.getElementById('hud-3d').classList.remove('hidden');
+  isPlaying3D = true;
+}
+
+function updateMapNodes() {
+  const nodes = document.querySelectorAll('.level-node');
+  nodes.forEach(node => {
+    const lvl = parseInt(node.dataset.lvl);
+    node.classList.remove('active', 'completed', 'locked');
+
+    const starEl = document.getElementById(`lvl-stars-${lvl}`);
+
+    if (lvl < campaignData.unlockedLevel) {
+      node.classList.add('completed');
+      if (starEl) starEl.textContent = '★★★';
+    } else if (lvl === campaignData.unlockedLevel) {
+      node.classList.add('active');
+      if (starEl) starEl.textContent = 'В бой!';
+    } else {
+      node.classList.add('locked');
+      if (starEl) starEl.textContent = '🔒';
+    }
+
+    node.onclick = () => {
+      if (lvl <= campaignData.unlockedLevel) {
+        campaignData.currentLevel = lvl;
+        loadLevel(lvl);
+      } else {
+        alert('Сначала пройди предыдущие миссии!');
+      }
     };
   });
 }
 
-function renderSalonGrid(category) {
+// -------------------------------------------------------------
+// МОДНЫЙ САЛОН (УРОВЕНЬ 4 / СКРИНШОТ 5)
+// -------------------------------------------------------------
+const SALON_ITEMS = {
+  bags: [
+    { id: 'shell_bag', name: 'Жемчужная ракушка', emoji: '🐚' },
+    { id: 'violet_shell', name: 'Лиловая сумка', emoji: '👛' },
+    { id: 'heart_pink', name: 'Розовое сердце', emoji: '💖' },
+    { id: 'bow_yellow', name: 'Сумочка с бантом', emoji: '🎀' },
+    { id: 'rainbow_bag', name: 'Радужный клатч', emoji: '🌈' },
+    { id: 'leather_pack', name: 'Школьный ранец', emoji: '🎒' }
+  ],
+  shoes: [
+    { id: 'fairy_boots', name: 'Хрустальные туфли', emoji: '👠' },
+    { id: 'pink_heels', name: 'Розовые шпильки', emoji: '👡' },
+    { id: 'glitter_boots', name: 'Сапожки Энчантикс', emoji: '👢' }
+  ],
+  hair: [
+    { id: 'bloom_red', name: 'Локоны Блум', emoji: '🧡' },
+    { id: 'stella_gold', name: 'Золото Стеллы', emoji: '💛' }
+  ],
+  wings: [
+    { id: 'enchantix_wings', name: 'Крылья Энчантикс', emoji: '🧚‍♀️' },
+    { id: 'sun_wings', name: 'Крылья Сияния', emoji: '☀️' }
+  ],
+  tops: [
+    { id: 'bloom_top', name: 'Бирюзовый топ', emoji: '🎽' },
+    { id: 'stella_top', name: 'Оранжевое сияние', emoji: '👚' }
+  ],
+  skirts: [
+    { id: 'bloom_pants', name: 'Брюки клеш', emoji: '👖' },
+    { id: 'stella_skirt', name: 'Юбочка с воланами', emoji: '👗' }
+  ]
+};
+
+let activeCat = 'bags';
+
+function openFashionLevel() {
+  document.getElementById('screen-salon').classList.remove('hidden');
+  document.getElementById('hud-3d').classList.add('hidden');
+  document.getElementById('screen-map').classList.add('hidden');
+
+  renderSalonCats();
+  renderSalonItems(activeCat);
+  const preview = document.getElementById('salon-fairy-preview');
+  if (preview && window.WINX_ASSETS) {
+    preview.innerHTML = WINX_ASSETS.characters.stella;
+  }
+}
+
+function renderSalonCats() {
+  document.querySelectorAll('.circle-cat-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.circle-cat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeCat = btn.dataset.cat;
+      renderSalonItems(activeCat);
+    };
+  });
+}
+
+function renderSalonItems(cat) {
   const grid = document.getElementById('wardrobe-items-grid');
   grid.innerHTML = '';
-  const items = SALON_ITEMS[category] || [];
+  const items = SALON_ITEMS[cat] || [];
 
-  items.forEach(item => {
+  items.forEach(it => {
     const card = document.createElement('div');
-    const isEquipped = game3dState.equipped[category] === item.id;
-    card.className = `wardrobe-item-card ${isEquipped ? 'equipped' : ''}`;
-
+    const isEq = campaignData.equipped[cat] === it.id;
+    card.className = `wardrobe-item-card ${isEq ? 'equipped' : ''}`;
     card.innerHTML = `
-      <div class="witem-emoji-art">${item.emoji}</div>
-      <b>${item.name}</b>
-      <small>${isEquipped ? '✓ Надето' : (item.cost === 0 ? 'Бесплатно' : `💎 ${item.cost}`)}</small>
+      <div class="witem-emoji-art">${it.emoji}</div>
+      <b>${it.name}</b>
+      <small>${isEq ? '✓ Выбрано' : 'Надеть'}</small>
     `;
 
     card.onclick = () => {
-      if (item.cost === 0 || game3dState.diamonds >= item.cost) {
-        game3dState.equipped[category] = item.id;
-        save3d();
-        if (window.magicAudio) window.magicAudio.playSparkle();
-        renderSalonGrid(category);
-        renderSalonFairyPreview();
-      } else {
-        alert('Собери больше розовых кристаллов в 3D замке Алфея!');
-      }
+      campaignData.equipped[cat] = it.id;
+      saveCampaign();
+      if (window.magicAudio) window.magicAudio.playSparkle();
+      renderSalonItems(cat);
     };
 
     grid.appendChild(card);
   });
 }
 
-function renderSalonFairyPreview() {
-  const box = document.getElementById('salon-fairy-preview');
-  if (box && window.WINX_ASSETS) {
-    box.innerHTML = WINX_ASSETS.characters.stella; // Полноразмерная Стелла из скриншота 5!
-  }
+function showFinalLetterModal() {
+  document.getElementById('modal-final-letter').classList.remove('hidden');
+  if (window.magicAudio) window.magicAudio.playEnchantixFanfare();
 }
 
-// Запуск при загрузке страницы
+// Запуск при старте
 window.addEventListener('DOMContentLoaded', () => {
-  init3D();
+  initThreeEngine();
 });

@@ -5,156 +5,275 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Winx 3D">
-  <meta name="theme-color" content="#ff1493">
-  <title>Winx Club 3D: Алфея и Сила Любви ✨</title>
+  <meta name="apple-mobile-web-app-title" content="Talking Fairy">
+  <meta name="theme-color" content="#ff80ab">
+  <title>Моя Говорящая Фея: Алфея ✨</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@600;700&family=Marck+Script&family=Cinzel:wght@700&display=swap" rel="stylesheet">
-  <!-- Three.js 3D WebGL Library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@600;700&family=Marck+Script&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div id="game-container">
+  <div id="game-app">
     
-    <!-- 1. ТРЁХМЕРНЫЙ ХОЛСТ (THREE.JS 3D VIEWPORT) -->
-    <div id="viewport-3d"></div>
+    <!-- ВЕРХНИЙ СТАТУС: МОНЕТЫ, УРОВЕНЬ И ВЫБОР КОМНАТЫ -->
+    <header class="fairy-hud-top">
+      <div class="level-badge">
+        <span class="lvl-star">⭐</span>
+        <span id="ui-level">Ур. 1</span>
+      </div>
 
-    <!-- 2. ИНТЕРФЕЙС 3D ИГРЫ (HUD В ТОЧНОСТИ КАК НА СКРИНШОТАХ 2, 3, 4) -->
-    <div id="hud-3d" class="hud-layer">
-      <!-- Верхний статус: Звёздочки и Розовые Кристаллы (как на скриншотах 3 и 4) -->
-      <div class="hud-top-bar">
-        <div class="hud-pill star-box">
-          <span class="hud-icon">⭐</span>
-          <b id="hud-stars">0</b>
+      <!-- Переключатель комнат (Гостиная, Кухня, Спальня) -->
+      <div class="room-selector-pills">
+        <button class="room-pill-btn active" data-room="living">🌸 Зал</button>
+        <button class="room-pill-btn" data-room="kitchen">🍰 Кухня</button>
+        <button class="room-pill-btn" data-room="bedroom">💤 Спальня</button>
+      </div>
+
+      <div class="coins-badge" id="btn-add-coins">
+        <span class="coin-icon">🪙</span>
+        <b id="ui-coins">150</b>
+      </div>
+
+      <button id="btn-sound-toggle" class="circle-btn-hud">🔊</button>
+    </header>
+
+    <!-- ОСНОВНАЯ ВИДИМАЯ КОМНАТА ФЕИ (С МЕБЕЛЬЮ, ОКНОМ И КОВРОМ) -->
+    <main class="room-viewport" id="room-viewport">
+      
+      <!-- ДЕТАЛИЗИРОВАННЫЙ ФОН КОМНАТЫ (ГЕНЕРИРУЕТСЯ ПОД КОМНАТУ) -->
+      <div class="room-scenery-backdrop" id="room-scenery">
+        <!-- Обои, окно, пол, плинтус и мебель -->
+      </div>
+
+      <!-- Речевое облачко феи -->
+      <div class="speech-bubble" id="speech-bubble">
+        <p id="speech-text">Привет, красавица! Поиграй со мной! 💖</p>
+      </div>
+
+      <!-- ИНТЕРАКТИВНАЯ АНИМИРОВАННАЯ ФЕЯ БЛУМ -->
+      <div class="fairy-character-stage" id="fairy-stage">
+        <canvas id="fairy-canvas" width="280" height="380"></canvas>
+        <div class="fairy-shadow"></div>
+      </div>
+
+      <!-- МЕБЕЛЬ ДЛЯ СПАЛЬНИ: НОЧНИК -->
+      <button id="btn-lamp-sleep" class="room-lamp-btn hidden">
+        <span class="lamp-icon">💡</span>
+        <small id="lamp-label">Спать</small>
+      </button>
+
+      <!-- МЕБЕЛЬ ДЛЯ КУХНИ: СТОЛИК С ЕДОЙ -->
+      <div class="kitchen-food-tray hidden" id="kitchen-food-tray">
+        <div class="food-item-slot" data-food="croissant">
+          <div class="food-emoji">🥐</div>
+          <small>Круассан (+25)</small>
+          <span class="food-price">🪙 10</span>
         </div>
-
-        <div class="hud-pill diamond-box">
-          <span class="hud-gem-icon">💎</span>
-          <span id="hud-diamonds-text"><b>0</b> / 60</span>
+        <div class="food-item-slot" data-food="macaron">
+          <div class="food-emoji">🧁</div>
+          <small>Кекс (+35)</small>
+          <span class="food-price">🪙 15</span>
         </div>
+        <div class="food-item-slot" data-food="icecream">
+          <div class="food-emoji">🍦</div>
+          <small>Эскимо (+40)</small>
+          <span class="food-price">🪙 20</span>
+        </div>
+        <div class="food-item-slot" data-food="strawberry">
+          <div class="food-emoji">🍓</div>
+          <small>Ягодки (+15)</small>
+          <span class="food-price">🪙 5</span>
+        </div>
+      </div>
 
-        <div class="hud-buttons">
-          <button id="btn-toggle-sound" class="hud-circle-btn" aria-label="Звук">🔊</button>
-          <button id="btn-switch-mode" class="hud-mode-btn">
-            <span>👗 Салон</span>
+      <!-- КНОПКА МИКРОФОНА: ФЕЯ ГОВОРИТ И ПОВТОРЯЕТ -->
+      <button id="btn-talk-fairy" class="talking-mic-btn">
+        <span class="mic-icon">🎙️</span>
+        <span>Скажи фее ✨</span>
+      </button>
+    </main>
+
+    <!-- НИЖНЯЯ ПАНЕЛЬ ПОТРЕБНОСТЕЙ (КАК В TALKING TOM) -->
+    <nav class="needs-dock-nav">
+      <!-- 1. Еда (ведёт на кухню) -->
+      <div class="need-meter-btn" id="nav-need-food">
+        <div class="need-circle">
+          <div class="need-fill" id="fill-food" style="height: 80%;"></div>
+          <span class="need-icon">🍰</span>
+        </div>
+        <span class="need-name">Кушать</span>
+      </div>
+
+      <!-- 2. Ласка (ведёт в зал) -->
+      <div class="need-meter-btn" id="nav-need-love">
+        <div class="need-circle">
+          <div class="need-fill" id="fill-love" style="height: 90%;"></div>
+          <span class="need-icon">💖</span>
+        </div>
+        <span class="need-name">Ласка</span>
+      </div>
+
+      <!-- 3. Игровая комната (Выбор из 5 мини-игр) -->
+      <div class="need-meter-btn" id="nav-need-games">
+        <div class="need-circle">
+          <div class="need-fill" id="fill-energy" style="height: 65%;"></div>
+          <span class="need-icon">🎮</span>
+        </div>
+        <span class="need-name">Игры 🪙</span>
+      </div>
+
+      <!-- 4. Сон (ведёт в спальню) -->
+      <div class="need-meter-btn" id="nav-need-sleep">
+        <div class="need-circle">
+          <div class="need-fill" id="fill-sleep" style="height: 70%;"></div>
+          <span class="need-icon">💤</span>
+        </div>
+        <span class="need-name">Сон</span>
+      </div>
+
+      <!-- 5. Гардероб феи -->
+      <div class="need-meter-btn" id="nav-need-closet">
+        <div class="need-circle">
+          <div class="need-fill full" style="height: 100%;"></div>
+          <span class="need-icon">👗</span>
+        </div>
+        <span class="need-name">Стиль</span>
+      </div>
+    </nav>
+
+    <!-- МОДАЛКА ВЫБОРА МИНИ-ИГР (5 ИГР НА ВЫБОР!) -->
+    <div id="modal-minigames" class="modal-screen hidden">
+      <div class="modal-card-box games-selector-box">
+        <button class="modal-close-icon" id="close-games-modal">✖</button>
+        <h2 class="modal-heading">🎮 Игровая комната</h2>
+        <p class="modal-sub">Выбирай любую мини-игру и зарабатывай монетки 🪙!</p>
+
+        <div class="minigames-grid-list">
+          <!-- Игра 1 -->
+          <button class="game-pick-card" id="btn-play-bubbles">
+            <span class="game-big-icon">💎</span>
+            <div class="game-card-text">
+              <b>Лопай Кристаллы</b>
+              <small>Лопай падающие сердечки и звёзды на скорость!</small>
+            </div>
+            <span class="earn-tag">🪙 До +100</span>
+          </button>
+
+          <!-- Игра 2 -->
+          <button class="game-pick-card" id="btn-play-jump">
+            <span class="game-big-icon">☁️</span>
+            <div class="game-card-text">
+              <b>Облачный Прыг-Скок</b>
+              <small>Прыгай феей по облачкам всё выше и выше!</small>
+            </div>
+            <span class="earn-tag">🪙 До +120</span>
+          </button>
+
+          <!-- Игра 3 -->
+          <button class="game-pick-card" id="btn-play-catch">
+            <span class="game-big-icon">🍓</span>
+            <div class="game-card-text">
+              <b>Сладости в Корзинку</b>
+              <small>Лови вкусняшки в воздухе и уворачивайся от льда!</small>
+            </div>
+            <span class="earn-tag">🪙 До +90</span>
+          </button>
+
+          <!-- Игра 4 -->
+          <button class="game-pick-card" id="btn-play-memory">
+            <span class="game-big-icon">🃏</span>
+            <div class="game-card-text">
+              <b>Магические Парочки</b>
+              <small>Найди одинаковые карточки с феями Винкс!</small>
+            </div>
+            <span class="earn-tag">🪙 До +80</span>
+          </button>
+
+          <!-- Игра 5 -->
+          <button class="game-pick-card" id="btn-play-rhythm">
+            <span class="game-big-icon">🎵</span>
+            <div class="game-card-text">
+              <b>Музыкальные Плитки</b>
+              <small>Успевай нажимать на падающие нотки под мелодию!</small>
+            </div>
+            <span class="earn-tag">🪙 До +110</span>
           </button>
         </div>
       </div>
+    </div>
 
-      <!-- Цветок здоровья в левом нижнем углу (культовый индикатор из Winx Club 2006, скриншоты 3 и 4) -->
-      <div class="classic-flower-hud" id="flower-health-hud">
-        <div class="flower-stem"></div>
-        <div class="flower-petals">
-          <div class="petal p1"></div>
-          <div class="petal p2"></div>
-          <div class="petal p3"></div>
-          <div class="petal p4"></div>
-          <div class="petal p5"></div>
-          <div class="flower-core"></div>
-        </div>
+    <!-- МИНИ-ИГРА 1: ЛОПАЙ КРИСТАЛЛЫ (BUBBLE / GEM POP) -->
+    <div id="screen-bubble-game" class="minigame-screen hidden">
+      <div class="minigame-header">
+        <button id="exit-bubble-game" class="pill-exit-btn">✖ Выход</button>
+        <div class="minigame-score">Монеты: <b id="bubble-coins-earned">🪙 0</b></div>
+        <div class="minigame-timer">Время: <b id="bubble-timer">30s</b></div>
       </div>
+      <canvas id="bubble-canvas"></canvas>
+    </div>
 
-      <!-- Кнопка щита (Магический сферический купол, скриншот 1) -->
-      <button id="btn-cast-shield" class="shield-action-btn">
-        <span class="shield-icon">🛡️</span>
-        <span class="shield-lbl">ЩИТ</span>
-      </button>
-
-      <!-- Подсказка управления на экране -->
-      <div id="swipe-hint" class="swipe-hint">
-        <span>👈 Свайп влево / вправо 👉</span>
-        <small>Свайп вверх — прыжок | Тап — щит</small>
+    <!-- МИНИ-ИГРА 2: ОБЛАЧНЫЙ ПРЫЖОК (CLOUD JUMP) -->
+    <div id="screen-jump-game" class="minigame-screen hidden">
+      <div class="minigame-header">
+        <button id="exit-jump-game" class="pill-exit-btn">✖ Выход</button>
+        <div class="minigame-score">Счёт: <b id="jump-score">0</b> (🪙 <span id="jump-coins">0</span>)</div>
       </div>
+      <canvas id="jump-canvas"></canvas>
+    </div>
 
-      <!-- Всплывающее уведомление сундука -->
-      <div id="chest-prompt" class="chest-prompt hidden">
-        <div class="chest-glow-icon">✨ 🎁 ✨</div>
-        <b>Волшебный сундук найден!</b>
-        <p>Нажми, чтобы открыть сокровище</p>
+    <!-- МИНИ-ИГРА 3: СЛАДОСТИ В КОРЗИНКУ (CATCH TREATS) -->
+    <div id="screen-catch-game" class="minigame-screen hidden">
+      <div class="minigame-header">
+        <button id="exit-catch-game" class="pill-exit-btn">✖ Выход</button>
+        <div class="minigame-score">Сладостей: <b id="catch-score">0</b> (🪙 <span id="catch-coins">0</span>)</div>
+      </div>
+      <canvas id="catch-canvas"></canvas>
+      <div class="catch-instruction-hint">Двигай пальцем влево и вправо, чтобы ловить сладости! 🥐</div>
+    </div>
+
+    <!-- МИНИ-ИГРА 4: МАГИЧЕСКИЕ ПАРОЧКИ (MEMORY CARDS) -->
+    <div id="screen-memory-game" class="minigame-screen hidden">
+      <div class="minigame-header">
+        <button id="exit-memory-game" class="pill-exit-btn">✖ Выход</button>
+        <div class="minigame-score">Найдено пар: <b id="memory-pairs-found">0 / 6</b></div>
+      </div>
+      <div class="memory-game-arena">
+        <div class="memory-cards-grid" id="memory-cards-grid"></div>
       </div>
     </div>
 
-    <!-- 3. МОДНЫЙ САЛОН / ГАРДЕРОБНАЯ (В ТОЧНОСТИ КАК НА СКРИНШОТЕ 5) -->
-    <div id="screen-salon" class="salon-layer hidden">
-      <div class="salon-backdrop">
-        <!-- Шапка салона -->
-        <div class="salon-top-nav">
-          <button id="salon-back-btn" class="salon-circle-btn">🏰 В 3D замок</button>
-          <div class="salon-diamonds-badge">
-            <span>💎</span> <b id="salon-diamonds-val">0</b>
-          </div>
+    <!-- МИНИ-ИГРА 5: МУЗЫКАЛЬНЫЕ ПЛИТКИ (RHYTHM TILES) -->
+    <div id="screen-rhythm-game" class="minigame-screen hidden">
+      <div class="minigame-header">
+        <button id="exit-rhythm-game" class="pill-exit-btn">✖ Выход</button>
+        <div class="minigame-score">Очки: <b id="rhythm-score">0</b> (🪙 <span id="rhythm-coins">0</span>)</div>
+      </div>
+      <canvas id="rhythm-canvas"></canvas>
+    </div>
+
+    <!-- МОДАЛКА ГАРДЕРОБА ФЕИ -->
+    <div id="modal-closet" class="modal-screen hidden">
+      <div class="modal-card-box closet-box">
+        <button class="modal-close-icon" id="close-closet-modal">✖</button>
+        <h2 class="modal-heading">👗 Гардеробная Феи</h2>
+        <div class="closet-tabs">
+          <button class="ctab-btn active" data-ctab="dresses">Наряды</button>
+          <button class="ctab-btn" data-ctab="wings">Крылья</button>
+          <button class="ctab-btn" data-ctab="hair">Волосы</button>
         </div>
-
-        <!-- Рабочее пространство салона -->
-        <div class="salon-layout">
-          <!-- Слева: Модель феи / Стеллы в полный рост -->
-          <div class="salon-model-stage">
-            <div id="salon-fairy-preview" class="fairy-live-model"></div>
-            <div class="stage-spotlight"></div>
-          </div>
-
-          <!-- По центру: Вертикальный столбец круглых розовых кнопок категорий (скриншот 5) -->
-          <div class="salon-category-column">
-            <button class="circle-cat-btn active" data-cat="hair" aria-label="Прически">
-              <span class="cat-icon">👒</span>
-            </button>
-            <button class="circle-cat-btn" data-cat="wings" aria-label="Крылья">
-              <span class="cat-icon">🧚‍♀️</span>
-            </button>
-            <button class="circle-cat-btn" data-cat="tops" aria-label="Топы">
-              <span class="cat-icon">👕</span>
-            </button>
-            <button class="circle-cat-btn" data-cat="skirts" aria-label="Юбки">
-              <span class="cat-icon">👗</span>
-            </button>
-            <button class="circle-cat-btn" data-cat="shoes" aria-label="Обувь">
-              <span class="cat-icon">👠</span>
-            </button>
-            <button class="circle-cat-btn" data-cat="bags" aria-label="Сумочки">
-              <span class="cat-icon">👜</span>
-            </button>
-          </div>
-
-          <!-- Справа: Розовое окно гардероба с сеткой аксессуаров и сумочек (скриншот 5) -->
-          <div class="salon-wardrobe-window">
-            <div class="wardrobe-items-grid" id="wardrobe-items-grid">
-              <!-- Заполняется в JS -->
-            </div>
-          </div>
-        </div>
+        <div class="closet-grid" id="closet-items-grid"></div>
       </div>
     </div>
 
-    <!-- 4. МОДАЛЬНОЕ ОКНО: ОТКРЫТИЕ СУНДУКА И ЛЮБОВНОЕ ПИСЬМО (СКРИНШОТ 4) -->
-    <div id="chest-modal" class="modal-overlay hidden">
-      <div class="chest-reward-card">
-        <button id="close-chest-modal" class="modal-close-btn">✖</button>
-        <div class="reward-sparkles">🌟 💖 👑 💖 🌟</div>
-        <h2 class="reward-title">Сокровище Алфеи открыто!</h2>
-        <div class="reward-icon-3d">💎 +15 Кристаллов!</div>
-        
-        <div class="reward-scroll-letter">
-          <div class="scroll-header">Любимое послание от Специалиста 💌</div>
-          <div class="scroll-body" id="chest-letter-text">
-            Ты нашла самое главное сокровище в замке Алфея!
-            <br><br>
-            Знай, что никакие драгоценные кристаллы Магикса не сияют так красиво, как твои глаза. Ты самая прекрасная фея во всех измерениях!
-          </div>
-          <div class="scroll-signature">Твой навсегда 💖</div>
-        </div>
-
-        <button id="continue-running-btn" class="gold-sparkle-btn">
-          <span>Продолжить полёт 🌟</span>
-        </button>
-      </div>
+    <!-- НОЧНОЙ ФИЛЬТР (КОГДА ФЕЯ СПИТ В СПАЛЬНЕ) -->
+    <div class="night-dark-filter hidden" id="night-filter">
+      <div class="sleeping-zzz">Zzz... 💤</div>
     </div>
 
   </div>
 
   <script src="audio.js"></script>
-  <script src="assets.js"></script>
-  <script src="game3d.js"></script>
+  <script src="talkingFairy.js"></script>
 </body>
 </html>

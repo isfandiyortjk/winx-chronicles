@@ -1,12 +1,11 @@
 :root {
-  --winx-pink: #ff1493;
-  --winx-magenta: #d81b60;
-  --winx-gold: #ffd700;
-  --winx-cyan: #00e5ff;
-  --winx-orange: #ff9100;
+  --pink-primary: #ff4081;
+  --pink-light: #fce4ec;
+  --pink-bubble: #ff80ab;
+  --gold-star: #ffd700;
+  --mint-green: #69f0ae;
   --font-main: 'Comfortaa', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-hand: 'Marck Script', cursive;
-  --font-cinzel: 'Cinzel', serif;
 }
 
 * {
@@ -24,568 +23,820 @@ body, html {
   overflow: hidden;
   position: fixed;
   font-family: var(--font-main);
-  background: #000;
-  color: #fff;
-  touch-action: none;
+  background: #ffcdd2;
+  touch-action: manipulation;
 }
 
-#game-container {
+#game-app {
   width: 100%;
   height: 100%;
-  max-width: 520px;
+  max-width: 500px;
   margin: 0 auto;
   position: relative;
   overflow: hidden;
-  background: #0f051d;
-  box-shadow: 0 0 50px rgba(255, 20, 147, 0.4);
+  display: flex;
+  flex-direction: column;
+  background: #ffebee;
+  box-shadow: 0 0 50px rgba(255, 64, 129, 0.35);
+  padding-top: env(safe-area-inset-top, 10px);
+  padding-bottom: env(safe-area-inset-bottom, 12px);
 }
 
-/* 1. THREE.JS 3D VIEWPORT */
-#viewport-3d {
+/* 1. ВЕРХНИЙ СТАТУС */
+.fairy-hud-top {
+  position: relative;
+  z-index: 25;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  gap: 6px;
+}
+
+.level-badge {
+  background: #ffffff;
+  color: #ad1457;
+  border: 2px solid #ff4081;
+  border-radius: 18px;
+  padding: 4px 10px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ПЕРЕКЛЮЧАТЕЛЬ КОМНАТ */
+.room-selector-pills {
+  display: flex;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 2px solid #ff80ab;
+  border-radius: 20px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.room-pill-btn {
+  background: transparent;
+  border: none;
+  font-family: var(--font-main);
+  font-weight: 700;
+  font-size: 0.72rem;
+  color: #c2185b;
+  padding: 5px 9px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.room-pill-btn.active {
+  background: #ff4081;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(233, 30, 99, 0.3);
+}
+
+.coins-badge {
+  background: #fff8e1;
+  color: #e65100;
+  border: 2px solid #ffd700;
+  border-radius: 18px;
+  padding: 4px 12px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.circle-btn-hud {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #ff4081;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 2. НАСТОЯЩАЯ ВИДИМАЯ КОМНАТА ФЕИ (VIEWPORT) */
+.room-viewport {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+/* ДЕКОРАЦИИ И МЕБЕЛЬ КОМНАТЫ (SVG / HTML СЛОИ) */
+.room-scenery-backdrop {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   z-index: 1;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
 }
 
-#viewport-3d canvas {
-  width: 100% !important;
-  height: 100% !important;
-  display: block;
+/* Стилизация обоев и пола для разных комнат */
+.room-living-theme {
+  background: linear-gradient(180deg, #ffe0e9 0%, #ffc1e3 65%, #d7ccc8 65%, #bcaaa4 67%, #8d6e63 100%);
 }
 
-/* 2. HUD LAYER (СКРИНШОТЫ 2, 3, 4) */
-.hud-layer {
+.room-kitchen-theme {
+  background: linear-gradient(180deg, #e0f2f1 0%, #b2dfdb 65%, #eceff1 65%, #cfd8dc 67%, #90a4ae 100%);
+}
+
+.room-bedroom-theme {
+  background: linear-gradient(180deg, #4a148c 0%, #311b92 65%, #3e2723 65%, #4e342e 67%, #2b1d0c 100%);
+}
+
+/* Окно комнаты */
+.room-arch-window {
   position: absolute;
-  top: 0;
-  left: 0;
+  top: 25px;
+  left: 30px;
+  width: 95px;
+  height: 130px;
+  background: #e1f5fe;
+  border: 4px solid #ffffff;
+  border-radius: 50px 50px 8px 8px;
+  box-shadow: inset 0 0 20px rgba(3, 169, 244, 0.3), 0 6px 18px rgba(0,0,0,0.15);
+  overflow: hidden;
+}
+
+.window-view-sky {
   width: 100%;
   height: 100%;
-  z-index: 10;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: env(safe-area-inset-top, 12px) 14px env(safe-area-inset-bottom, 16px);
+  position: relative;
+  background: linear-gradient(180deg, #81d4fa 0%, #b3e5fc 50%, #ffccbc 100%);
 }
 
-.hud-layer * {
-  pointer-events: auto;
-}
-
-/* Верхняя панель: Звезда и Розовый Кристалл */
-.hud-top-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.hud-pill {
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  border-radius: 20px;
-  padding: 5px 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.95rem;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-}
-
-.star-box {
-  border-color: var(--winx-gold);
-}
-
-.star-box b {
-  color: var(--winx-gold);
-  text-shadow: 0 0 10px var(--winx-gold);
-}
-
-.diamond-box {
-  border-color: #ff80ab;
-}
-
-.hud-gem-icon {
-  font-size: 1.25rem;
-  filter: drop-shadow(0 0 8px #ff4081);
-}
-
-.diamond-box b {
-  color: #ff4081;
-  text-shadow: 0 0 10px #ff4081;
-}
-
-.hud-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.hud-circle-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
-  border: 1.5px solid #fff;
-  color: #fff;
-  font-size: 1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-
-.hud-mode-btn {
-  background: linear-gradient(135deg, #ff1493, #ff4081);
-  border: 2px solid #ffd700;
-  border-radius: 20px;
-  padding: 6px 14px;
-  color: #fff;
-  font-family: var(--font-main);
-  font-weight: 700;
-  font-size: 0.85rem;
-  cursor: pointer;
-  box-shadow: 0 4px 15px rgba(255, 20, 147, 0.6);
-}
-
-/* КУЛЬТОВЫЙ ЦВЕТОК ЗДОРОВЬЯ (В ТОЧНОСТИ КАК НА СКРИНШОТАХ 3 И 4) */
-.classic-flower-hud {
-  position: absolute;
-  bottom: 25px;
-  left: 15px;
-  width: 65px;
-  height: 65px;
-  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.6));
-}
-
-.flower-stem {
+.window-spire {
   position: absolute;
   bottom: 0;
-  left: 10px;
-  width: 35px;
-  height: 40px;
-  border-left: 5px solid #43a047;
-  border-bottom: 5px solid #43a047;
-  border-radius: 0 0 0 25px;
+  left: 20px;
+  width: 25px;
+  height: 55px;
+  background: #ff80ab;
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
 }
 
-.flower-petals {
+.window-sun {
   position: absolute;
-  top: 5px;
-  left: 15px;
-  width: 45px;
-  height: 45px;
-  animation: gentlePulse 3s infinite ease-in-out;
+  top: 15px;
+  right: 15px;
+  font-size: 1.6rem;
+  animation: floatSun 4s infinite ease-in-out;
 }
 
-.petal {
-  position: absolute;
-  width: 18px;
-  height: 18px;
-  background: radial-gradient(circle, #ff9800 0%, #e65100 100%);
-  border: 1.5px solid #ffd54f;
-  border-radius: 50% 50% 10% 50%;
+@keyframes floatSun {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
 }
 
-.p1 { top: 0; left: 13px; transform: rotate(0deg); }
-.p2 { top: 9px; right: 0; transform: rotate(72deg); }
-.p3 { bottom: 0; right: 5px; transform: rotate(144deg); }
-.p4 { bottom: 0; left: 5px; transform: rotate(216deg); }
-.p5 { top: 9px; left: 0; transform: rotate(288deg); }
-
-.flower-core {
+/* Гирлянда лампочек на стене */
+.garland-lights {
   position: absolute;
-  top: 13px;
-  left: 13px;
-  width: 19px;
-  height: 19px;
-  background: radial-gradient(circle, #fff59d 0%, #ffd700 80%);
+  top: 12px;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+  font-size: 1.1rem;
+  filter: drop-shadow(0 2px 8px #ffd700);
+}
+
+/* Пушистый ковер под феей */
+.room-cozy-rug {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 240px;
+  height: 65px;
+  background: radial-gradient(ellipse at center, #ff80ab 0%, #ff4081 70%, #d81b60 100%);
   border-radius: 50%;
-  border: 1.5px solid #ff6f00;
+  border: 4px dashed rgba(255, 255, 255, 0.7);
+  box-shadow: 0 8px 20px rgba(173, 20, 87, 0.25);
+  z-index: 2;
 }
 
-@keyframes gentlePulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.08); }
+/* Кровать в спальне */
+.room-bed-decor {
+  position: absolute;
+  bottom: 35px;
+  left: 20px;
+  width: 130px;
+  height: 90px;
+  background: linear-gradient(180deg, #ce93d8 0%, #ab47bc 100%);
+  border: 3px solid #ffd700;
+  border-radius: 20px 20px 6px 6px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  z-index: 2;
 }
 
-/* КНОПКА ЩИТА (КУПОЛ СКРИНШОТА 1) */
-.shield-action-btn {
+.bed-pillow {
+  position: absolute;
+  top: -15px;
+  left: 25px;
+  width: 80px;
+  height: 25px;
+  background: #ffffff;
+  border: 2px solid #e1bee7;
+  border-radius: 12px;
+}
+
+/* Обеденный столик в кухне */
+.kitchen-table-decor {
   position: absolute;
   bottom: 25px;
-  right: 15px;
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #ff80ab 0%, #d81b60 60%, #4a148c 100%);
-  border: 3px solid #00e5ff;
-  color: #fff;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 260px;
+  height: 50px;
+  background: linear-gradient(180deg, #ffffff 0%, #fff0f5 100%);
+  border: 3px solid #ff80ab;
+  border-radius: 25px 25px 8px 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+  z-index: 12;
+}
+
+/* Речевое облачко */
+.speech-bubble {
+  position: absolute;
+  top: 55px;
+  right: 20px;
+  max-width: 180px;
+  background: #ffffff;
+  border: 2.5px solid #ff4081;
+  border-radius: 18px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 20px rgba(255, 64, 129, 0.25);
+  z-index: 15;
+}
+
+.speech-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 25px;
+  border-width: 10px 10px 0;
+  border-style: solid;
+  border-color: #ff4081 transparent;
+  display: block;
+}
+
+.speech-bubble p {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: #ad1457;
+  font-weight: 700;
+}
+
+/* Сцена феи (Canvas) */
+.fairy-character-stage {
+  position: relative;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   cursor: pointer;
-  box-shadow: 0 0 25px #00e5ff, inset 0 0 15px rgba(255,255,255,0.7);
-  animation: shieldButtonGlow 2s infinite alternate;
+  touch-action: none;
+  margin-bottom: 25px;
 }
 
-.shield-action-btn:active {
-  transform: scale(0.9);
+#fairy-canvas {
+  width: 250px;
+  height: 340px;
+  filter: drop-shadow(0 15px 30px rgba(233, 30, 99, 0.3));
 }
 
-.shield-icon {
-  font-size: 1.5rem;
+.fairy-shadow {
+  width: 140px;
+  height: 22px;
+  background: radial-gradient(ellipse at center, rgba(173, 20, 87, 0.35) 0%, transparent 70%);
+  border-radius: 50%;
+  margin-top: -12px;
 }
 
-.shield-lbl {
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 1px;
-}
-
-@keyframes shieldButtonGlow {
-  0% { box-shadow: 0 0 15px #00e5ff; }
-  100% { box-shadow: 0 0 30px #ff4081, 0 0 15px #00e5ff; }
-}
-
-/* ПОДСКАЗКА СВАЙПА */
-.swipe-hint {
-  align-self: center;
-  margin-bottom: 20px;
-  text-align: center;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  padding: 6px 16px;
-  border-radius: 20px;
-  pointer-events: none;
-  animation: fadePulse 2.5s infinite;
-}
-
-.swipe-hint span {
-  display: block;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #ffd700;
-}
-
-.swipe-hint small {
-  display: block;
-  font-size: 0.7rem;
-  opacity: 0.85;
-}
-
-@keyframes fadePulse {
-  0%, 100% { opacity: 0.9; }
-  50% { opacity: 0.4; }
-}
-
-/* 3. МОДНЫЙ САЛОН / ГАРДЕРОБНАЯ (В ТОЧНОСТИ КАК НА СКРИНШОТЕ 5) */
-.salon-layer {
+/* Ночник / лампа для спальни */
+.room-lamp-btn {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 20;
-  background: linear-gradient(135deg, #ffd1dc 0%, #ffe4e1 40%, #ffc0cb 100%);
+  top: 130px;
+  left: 25px;
+  background: #fff;
+  border: 2px solid #ffd700;
+  border-radius: 20px;
+  padding: 6px 12px;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 15;
 }
 
-.salon-layer.hidden {
+.room-lamp-btn.hidden {
   display: none !important;
 }
 
-.salon-backdrop {
-  width: 100%;
-  height: 100%;
-  padding: env(safe-area-inset-top, 12px) 10px env(safe-area-inset-bottom, 12px);
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  background-image: radial-gradient(#ff69b4 0.75px, transparent 0.75px);
-  background-size: 20px 20px;
+.lamp-icon {
+  font-size: 1.4rem;
 }
 
-.salon-top-nav {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 4px 8px;
-}
-
-.salon-circle-btn {
-  background: #ff4081;
-  color: #fff;
-  border: 2px solid #fff;
-  border-radius: 20px;
-  padding: 6px 14px;
-  font-family: var(--font-main);
+.room-lamp-btn small {
+  font-size: 0.65rem;
   font-weight: 700;
-  font-size: 0.85rem;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(255, 64, 129, 0.4);
+  color: #e65100;
 }
 
-.salon-diamonds-badge {
-  background: #ffffff;
-  color: #d81b60;
-  border: 2px solid #ff4081;
-  border-radius: 20px;
-  padding: 5px 14px;
-  font-size: 0.9rem;
-  font-weight: 700;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-}
-
-/* Рабочая зона гардероба (скриншот 5: персонаж слева, иконки по центру, витрина справа) */
-.salon-layout {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-/* Модель феи слева */
-.salon-model-stage {
-  flex: 1.1;
-  height: 90%;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.fairy-live-model {
-  width: 100%;
-  height: 100%;
-  filter: drop-shadow(0 10px 20px rgba(216, 27, 96, 0.35));
-}
-
-.stage-spotlight {
+/* Поднос с едой в кухне */
+.kitchen-food-tray {
   position: absolute;
-  bottom: 10px;
-  width: 140px;
-  height: 35px;
-  background: radial-gradient(ellipse at center, rgba(255, 64, 129, 0.35) 0%, transparent 75%);
-  border-radius: 50%;
-  z-index: -1;
-}
-
-/* ВЕРТИКАЛЬНЫЙ СТОЛБЕЦ РОЗОВЫХ КНОПОК КАТЕГОРИЙ (В ТОЧНОСТИ СКРИНШОТ 5) */
-.salon-category-column {
+  bottom: 75px;
+  left: 15px;
+  right: 15px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 3px solid #ff4081;
+  border-radius: 24px;
+  padding: 10px;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  justify-content: center;
+  justify-content: space-around;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  z-index: 25;
 }
 
-.circle-cat-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #ff80ab 0%, #e91e63 60%, #c2185b 100%);
-  border: 2.5px solid #ffffff;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 10px rgba(194, 24, 91, 0.35), inset 0 2px 4px rgba(255,255,255,0.6);
-  transition: transform 0.15s ease, border-color 0.2s;
+.kitchen-food-tray.hidden {
+  display: none !important;
 }
 
-.circle-cat-btn:active, .circle-cat-btn.active {
-  transform: scale(1.12);
-  border-color: #ffd700;
-  box-shadow: 0 0 15px rgba(255, 215, 0, 0.8), inset 0 2px 6px rgba(255,255,255,0.9);
-}
-
-.cat-icon {
-  font-size: 1.35rem;
-}
-
-/* ПРАВОЕ ОКНО ГАРДЕРОБА С СУМОЧКАМИ И ОБУВЬЮ (В ТОЧНОСТИ СКРИНШОТ 5) */
-.salon-wardrobe-window {
-  flex: 1.4;
-  height: 85%;
-  background: #ffffff;
-  border: 5px solid #ff4081;
-  border-radius: 28px;
-  padding: 12px 10px;
-  box-shadow: 0 10px 25px rgba(233, 30, 99, 0.25), inset 0 0 15px rgba(255, 64, 129, 0.1);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.wardrobe-items-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-}
-
-.wardrobe-item-card {
-  background: #fff0f5;
-  border: 2px dashed #ff80ab;
-  border-radius: 18px;
-  padding: 8px 4px;
+.food-item-slot {
   display: flex;
   flex-direction: column;
   align-items: center;
-  text-align: center;
   cursor: pointer;
-  transition: transform 0.12s ease, border-color 0.2s;
+  padding: 6px 4px;
+  border-radius: 14px;
+  transition: transform 0.1s ease;
 }
 
-.wardrobe-item-card:active, .wardrobe-item-card.equipped {
-  transform: scale(1.05);
-  border-style: solid;
-  border-color: #ff1493;
-  background: #ffe4e1;
-  box-shadow: 0 4px 12px rgba(255, 20, 147, 0.3);
+.food-item-slot:active {
+  transform: scale(1.15);
 }
 
-.witem-emoji-art {
+.food-emoji {
   font-size: 2.2rem;
-  margin-bottom: 3px;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
+  margin-bottom: 2px;
 }
 
-.wardrobe-item-card b {
-  font-size: 0.75rem;
-  color: #ad1457;
-  display: block;
-}
-
-.wardrobe-item-card small {
+.food-item-slot small {
   font-size: 0.65rem;
   color: #880e4f;
+  font-weight: 700;
+}
+
+.food-price {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #e65100;
   margin-top: 2px;
 }
 
-/* 4. МОДАЛЬНОЕ ОКНО СУНДУКА (СКРИНШОТ 4) */
-.modal-overlay {
+/* Кнопка микрофона */
+.talking-mic-btn {
+  position: absolute;
+  top: 145px;
+  right: 20px;
+  background: linear-gradient(135deg, #ff4081, #ff80ab);
+  color: #fff;
+  border: 2px solid #fff;
+  border-radius: 20px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-main);
+  font-weight: 700;
+  font-size: 0.78rem;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(255, 64, 129, 0.4);
+  z-index: 15;
+}
+
+/* 3. НИЖНЯЯ ПАНЕЛЬ ПОТРЕБНОСТЕЙ */
+.needs-dock-nav {
+  position: relative;
+  z-index: 25;
+  background: #ffffff;
+  border-top: 3px solid #ff4081;
+  padding: 8px 10px 4px;
+  display: flex;
+  justify-content: space-around;
+  border-radius: 26px 26px 0 0;
+  box-shadow: 0 -6px 25px rgba(233, 30, 99, 0.15);
+}
+
+.need-meter-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+
+.need-meter-btn:active {
+  transform: scale(0.92);
+}
+
+.need-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 3px solid #ff4081;
+  background: #fff0f5;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.need-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(180deg, #69f0ae, #00e676);
+  transition: height 0.3s ease;
+  z-index: 1;
+}
+
+.need-fill.low {
+  background: linear-gradient(180deg, #ff5252, #d50000);
+}
+
+.need-fill.mid {
+  background: linear-gradient(180deg, #ffd700, #ff9100);
+}
+
+.need-icon {
+  font-size: 1.4rem;
+  position: relative;
+  z-index: 2;
+}
+
+.need-name {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #ad1457;
+  margin-top: 3px;
+}
+
+/* 4. ВЫБОР ИЗ 5 МИНИ-ИГР */
+.modal-screen {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  z-index: 100;
+  z-index: 50;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 14px;
 }
 
-.modal-overlay.hidden {
+.modal-screen.hidden {
   display: none !important;
 }
 
-.chest-reward-card {
-  background: linear-gradient(135deg, #fffdf5 0%, #fff8e1 100%);
-  color: #3e2723;
+.modal-card-box {
+  background: #ffffff;
+  border: 4px solid #ff4081;
+  border-radius: 28px;
+  padding: 20px 16px;
   width: 100%;
-  max-width: 400px;
-  border-radius: 26px;
-  padding: 24px 20px;
-  text-align: center;
+  max-width: 420px;
   position: relative;
-  border: 4px solid #ffd700;
-  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.7), 0 0 35px rgba(255, 215, 0, 0.6);
-  animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  text-align: center;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.4);
 }
 
-@keyframes popIn {
-  0% { transform: scale(0.6); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
+.games-selector-box {
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
 }
 
-.modal-close-btn {
+.modal-close-icon {
   position: absolute;
   top: 12px;
   right: 14px;
   background: transparent;
   border: none;
   font-size: 1.3rem;
-  color: #8d6e63;
+  color: #880e4f;
   cursor: pointer;
 }
 
-.reward-sparkles {
-  font-size: 1.4rem;
-  margin-bottom: 6px;
-}
-
-.reward-title {
-  font-size: 1.4rem;
+.modal-heading {
+  font-size: 1.35rem;
   color: #c2185b;
   margin-bottom: 4px;
 }
 
-.reward-icon-3d {
-  display: inline-block;
+.modal-sub {
+  font-size: 0.78rem;
+  color: #8d6e63;
+  margin-bottom: 12px;
+}
+
+.minigames-grid-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.game-pick-card {
+  background: #fff0f5;
+  border: 2px solid #ff80ab;
+  border-radius: 18px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+
+.game-pick-card:active {
+  transform: scale(0.97);
+  background: #ffe4e1;
+}
+
+.game-big-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.game-card-text {
+  flex: 1;
+}
+
+.game-card-text b {
+  font-size: 0.9rem;
+  color: #ad1457;
+  display: block;
+}
+
+.game-card-text small {
+  font-size: 0.68rem;
+  color: #5d4037;
+  display: block;
+  margin-top: 2px;
+}
+
+.earn-tag {
+  background: #ffd700;
+  color: #3e2723;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.72rem;
+  flex-shrink: 0;
+}
+
+/* 5. ЭКРАНЫ МИНИ-ИГР */
+.minigame-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 60;
+  background: #1a0033;
+  display: flex;
+  flex-direction: column;
+}
+
+.minigame-screen.hidden {
+  display: none !important;
+}
+
+.minigame-header {
+  position: absolute;
+  top: env(safe-area-inset-top, 10px);
+  left: 14px;
+  right: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 20px;
+  padding: 6px 14px;
+  border: 1px solid rgba(255,255,255,0.3);
+}
+
+.pill-exit-btn {
   background: #ff4081;
   color: #fff;
-  padding: 5px 16px;
-  border-radius: 16px;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 14px;
+  font-size: 0.8rem;
   font-weight: 700;
-  font-size: 0.95rem;
-  margin-bottom: 12px;
-  box-shadow: 0 4px 15px rgba(255, 64, 129, 0.4);
-}
-
-.reward-scroll-letter {
-  background: #ffffff;
-  border: 2px dashed #ffb74d;
-  border-radius: 18px;
-  padding: 16px 14px;
-  text-align: left;
-  margin-bottom: 16px;
-}
-
-.scroll-header {
-  font-family: var(--font-hand);
-  font-size: 1.5rem;
-  color: #d81b60;
-  margin-bottom: 8px;
-  border-bottom: 1px solid #ffe0b2;
-  padding-bottom: 4px;
-}
-
-.scroll-body {
-  font-family: var(--font-hand);
-  font-size: 1.35rem;
-  line-height: 1.35;
-  color: #4e342e;
-}
-
-.scroll-signature {
-  font-family: var(--font-hand);
-  font-size: 1.45rem;
-  color: #ad1457;
-  text-align: right;
-  margin-top: 8px;
-}
-
-.gold-sparkle-btn {
-  background: linear-gradient(135deg, #ffd700 0%, #ff9800 100%);
-  color: #4a148c;
-  border: 2px solid #ffffff;
-  border-radius: 25px;
-  padding: 12px 28px;
-  font-family: var(--font-main);
-  font-weight: 700;
-  font-size: 1rem;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(255, 152, 0, 0.5);
+}
+
+.minigame-score {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #ffd700;
+}
+
+.minigame-timer {
+  font-size: 0.85rem;
+  color: #fff;
+}
+
+#bubble-canvas, #jump-canvas, #catch-canvas, #rhythm-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.catch-instruction-hint {
+  position: absolute;
+  bottom: 25px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  color: #ffd700;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  pointer-events: none;
+}
+
+/* ИГРА: МАГИЧЕСКИЕ КАРТОЧКИ (MEMORY) */
+.memory-game-arena {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 65px 15px 20px;
+  background: radial-gradient(circle, #4a148c 0%, #1a0033 100%);
+}
+
+.memory-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+  max-width: 340px;
+}
+
+.memory-card-tile {
+  aspect-ratio: 1;
+  background: #fff0f5;
+  border: 3px solid #ff4081;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  transition: transform 0.2s ease;
+}
+
+.memory-card-tile.flipped {
+  background: #fff8e1;
+  border-color: #ffd700;
+  transform: rotateY(180deg);
+}
+
+.memory-card-tile.matched {
+  background: #e8f5e9;
+  border-color: #66bb6a;
+  visibility: hidden;
+  transition: visibility 0.4s ease;
+}
+
+/* 6. ГАРДЕРОБНАЯ */
+.closet-tabs {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.ctab-btn {
+  background: #fff0f5;
+  border: 1.5px solid #ff4081;
+  color: #ad1457;
+  padding: 6px 14px;
+  border-radius: 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ctab-btn.active {
+  background: #ff4081;
+  color: #fff;
+}
+
+.closet-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.closet-item-card {
+  background: #fff8e1;
+  border: 2px solid #ffd700;
+  border-radius: 16px;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+}
+
+.closet-item-card.equipped {
+  border-color: #ff1493;
+  background: #ffe4e1;
+}
+
+.closet-icon {
+  font-size: 2rem;
+  margin-bottom: 2px;
+}
+
+.closet-item-card b {
+  font-size: 0.72rem;
+  color: #ad1457;
+}
+
+.closet-item-card small {
+  font-size: 0.65rem;
+  color: #e65100;
+  font-weight: 700;
+}
+
+/* 7. НОЧНОЙ ФИЛЬТР (ФЕЯ СПИТ) */
+.night-dark-filter {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 75px);
+  background: rgba(10, 0, 30, 0.85);
+  z-index: 18;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.night-dark-filter.hidden {
+  display: none !important;
+}
+
+.sleeping-zzz {
+  font-size: 2.8rem;
+  color: #ffd700;
+  font-family: var(--font-hand);
+  animation: floatZzz 2.5s infinite;
+}
+
+@keyframes floatZzz {
+  0% { transform: translateY(0) scale(0.8); opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { transform: translateY(-40px) scale(1.3); opacity: 0; }
 }
