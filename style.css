@@ -145,6 +145,13 @@ body, html {
   z-index: 1;
   pointer-events: none;
   transition: opacity 0.3s ease;
+  overflow: hidden;
+}
+
+.hand-drawn-room-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 /* Стилизация обоев и пола для разных комнат */
@@ -271,39 +278,42 @@ body, html {
   z-index: 12;
 }
 
-/* Речевое облачко */
+/* Речевое облачко в стиле рисованного комикса / скетчбука */
 .speech-bubble {
   position: absolute;
   top: 55px;
-  right: 20px;
-  max-width: 180px;
+  right: 18px;
+  max-width: 195px;
   background: #ffffff;
   border: 2.5px solid #ff4081;
-  border-radius: 18px;
-  padding: 10px 12px;
-  box-shadow: 0 8px 20px rgba(255, 64, 129, 0.25);
+  border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
+  padding: 10px 14px;
+  box-shadow: 0 8px 24px rgba(255, 64, 129, 0.22);
   z-index: 15;
+  transform: rotate(-1deg);
+  transition: transform 0.2s ease;
 }
 
 .speech-bubble::after {
   content: '';
   position: absolute;
-  bottom: -10px;
-  left: 25px;
-  border-width: 10px 10px 0;
+  bottom: -11px;
+  left: 22px;
+  border-width: 11px 9px 0;
   border-style: solid;
   border-color: #ff4081 transparent;
   display: block;
 }
 
 .speech-bubble p {
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   line-height: 1.35;
   color: #ad1457;
   font-weight: 700;
+  font-family: 'Comfortaa', sans-serif;
 }
 
-/* Сцена феи (Canvas) */
+/* Сцена феи (Canvas) с рисованной анимацией от руки */
 .fairy-character-stage {
   position: relative;
   z-index: 10;
@@ -312,17 +322,17 @@ body, html {
   align-items: center;
   cursor: pointer;
   touch-action: none;
-  margin-bottom: 25px;
+  margin-bottom: 22px;
 }
 
 #fairy-canvas {
-  width: 250px;
-  height: 340px;
-  filter: drop-shadow(0 15px 30px rgba(233, 30, 99, 0.3));
+  width: 300px;
+  height: 430px;
+  filter: drop-shadow(0 15px 30px rgba(233, 30, 99, 0.28));
 }
 
 .fairy-shadow {
-  width: 140px;
+  width: 160px;
   height: 22px;
   background: radial-gradient(ellipse at center, rgba(173, 20, 87, 0.35) 0%, transparent 70%);
   border-radius: 50%;
@@ -333,17 +343,22 @@ body, html {
 .room-lamp-btn {
   position: absolute;
   top: 130px;
-  left: 25px;
-  background: #fff;
-  border: 2px solid #ffd700;
-  border-radius: 20px;
-  padding: 6px 12px;
+  left: 20px;
+  background: #ffffff;
+  border: 2.5px solid #ffd700;
+  border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
+  padding: 8px 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 6px 16px rgba(255, 215, 0, 0.3);
   z-index: 15;
+  transition: transform 0.2s;
+}
+
+.room-lamp-btn:active {
+  transform: scale(0.92);
 }
 
 .room-lamp-btn.hidden {
@@ -351,11 +366,11 @@ body, html {
 }
 
 .lamp-icon {
-  font-size: 1.4rem;
+  font-size: 1.5rem;
 }
 
 .room-lamp-btn small {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: #e65100;
 }
@@ -363,18 +378,18 @@ body, html {
 /* Поднос с едой в кухне */
 .kitchen-food-tray {
   position: absolute;
-  bottom: 75px;
-  left: 15px;
-  right: 15px;
-  background: rgba(255, 255, 255, 0.95);
+  bottom: 65px;
+  left: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 3px solid #ff4081;
-  border-radius: 24px;
-  padding: 10px;
+  border: 2.5px solid #ff4081;
+  border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
+  padding: 8px 6px;
   display: flex;
   justify-content: space-around;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 28px rgba(255, 64, 129, 0.25);
   z-index: 25;
 }
 
@@ -417,22 +432,27 @@ body, html {
 /* Кнопка микрофона */
 .talking-mic-btn {
   position: absolute;
-  top: 145px;
-  right: 20px;
+  top: 155px;
+  right: 18px;
   background: linear-gradient(135deg, #ff4081, #ff80ab);
   color: #fff;
   border: 2px solid #fff;
-  border-radius: 20px;
-  padding: 8px 12px;
+  border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
+  padding: 8px 14px;
   display: flex;
   align-items: center;
   gap: 6px;
   font-family: var(--font-main);
   font-weight: 700;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(255, 64, 129, 0.4);
+  box-shadow: 0 6px 18px rgba(255, 64, 129, 0.4);
   z-index: 15;
+  transition: transform 0.15s ease;
+}
+
+.talking-mic-btn:active {
+  transform: scale(0.93);
 }
 
 /* 3. НИЖНЯЯ ПАНЕЛЬ ПОТРЕБНОСТЕЙ */
